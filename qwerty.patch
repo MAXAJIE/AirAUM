@@ -1,0 +1,2204 @@
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/components/app-shell.tsx work/src/components/app-shell.tsx
+--- base/src/components/app-shell.tsx	2026-09-11 17:17:06.605000000 +0000
++++ work/src/components/app-shell.tsx	2026-09-11 17:18:27.081000000 +0000
+@@ -13,6 +13,7 @@
+   Users,
+   Wrench,
+   Palette,
++  Star,
+ } from "lucide-react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
+@@ -24,6 +25,7 @@
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+ import { ScrollArea } from "@/components/ui/scroll-area";
+ import { ThemePanel } from "@/components/theme-panel";
++import { AirCleanLogo } from "@/components/brand";
+ import { Skeleton } from "@/components/ui/skeleton";
+ 
+ type NavItem = { to: string; label: string; icon: typeof Gauge; staffOnly?: boolean; adminOnly?: boolean };
+@@ -34,6 +36,7 @@
+   { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
+   { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
+   { to: "/maintenance", label: "Maintenance", icon: Wrench },
++  { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
+   { to: "/team", label: "Team", icon: Users, staffOnly: true },
+   { to: "/settings", label: "Settings", icon: Settings },
+ ];
+@@ -94,10 +97,7 @@
+     <div className="min-h-screen bg-background">
+       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface p-4 lg:flex">
+         <Link to="/dashboard" className="mb-6 flex items-center gap-2 px-2">
+-          <span className="grid size-8 place-items-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground">
+-            OP
+-          </span>
+-          <span className="font-display text-base font-semibold tracking-tight">OpsPilot</span>
++          <AirCleanLogo />
+         </Link>
+         {nav}
+         <div className="mt-auto space-y-2 pt-4">
+@@ -117,7 +117,9 @@
+               </Button>
+             </SheetTrigger>
+             <SheetContent side="left" className="w-64 p-4">
+-              <SheetTitle className="mb-6 font-display">OpsPilot</SheetTitle>
++              <SheetTitle className="mb-6 font-display">
++                <AirCleanLogo />
++              </SheetTitle>
+               {nav}
+               <Button variant="ghost" size="sm" className="mt-6 w-full justify-start" onClick={signOut}>
+                 <LogOut className="mr-2 size-4" /> Sign out
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/components/brand.tsx work/src/components/brand.tsx
+--- base/src/components/brand.tsx	1970-01-01 00:00:00.000000000 +0000
++++ work/src/components/brand.tsx	2026-09-11 17:17:11.987000000 +0000
+@@ -0,0 +1,81 @@
++import { cn } from "@/lib/utils";
++
++/**
++ * AirClean brand mark.
++ *
++ * A droplet cut by an air current, drawn from the live theme tokens so it
++ * follows the user's accent hue instead of hard-coding a colour. The sheen and
++ * the current lines animate on their own; `animated={false}` freezes them for
++ * dense surfaces such as table rows.
++ */
++export function AirCleanMark({
++  className,
++  animated = true,
++}: {
++  className?: string;
++  animated?: boolean;
++}) {
++  return (
++    <svg viewBox="0 0 48 48" role="img" aria-label="AirClean" className={cn("size-8", className)}>
++      <defs>
++        <linearGradient id="airclean-drop" x1="0" y1="0" x2="1" y2="1">
++          <stop offset="0%" stopColor="var(--primary-glow)" />
++          <stop offset="100%" stopColor="var(--primary)" />
++        </linearGradient>
++      </defs>
++
++      <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#airclean-drop)" />
++
++      {/* Droplet */}
++      <path
++        d="M24 11c5.4 6.1 8.6 10.4 8.6 14.6A8.6 8.6 0 0 1 24 34.2a8.6 8.6 0 0 1-8.6-8.6c0-4.2 3.2-8.5 8.6-14.6Z"
++        fill="var(--primary-foreground)"
++        opacity="0.94"
++      />
++      {/* Sheen */}
++      <path
++        d="M21 24.5c0-2.6 1.2-4.9 3-6.6"
++        stroke="url(#airclean-drop)"
++        strokeWidth="2"
++        strokeLinecap="round"
++        fill="none"
++        className={animated ? "animate-sheen" : undefined}
++      />
++      {/* Air currents */}
++      <g
++        stroke="var(--primary-foreground)"
++        strokeWidth="2.2"
++        strokeLinecap="round"
++        opacity="0.85"
++        className={animated ? "animate-drift" : undefined}
++      >
++        <path d="M6 17h7" />
++        <path d="M8 23h5" />
++        <path d="M35 31h7" />
++        <path d="M35 37h5" />
++      </g>
++    </svg>
++  );
++}
++
++/** Mark plus wordmark, used on the landing page, in the sidebar and in menus. */
++export function AirCleanLogo({
++  className,
++  markClassName,
++  showWord = true,
++}: {
++  className?: string;
++  markClassName?: string;
++  showWord?: boolean;
++}) {
++  return (
++    <span className={cn("flex items-center gap-2", className)}>
++      <AirCleanMark className={cn("size-8 drop-shadow-sm", markClassName)} />
++      {showWord && (
++        <span className="font-display text-base font-semibold tracking-tight">
++          Air<span className="text-gradient-brand">Clean</span>
++        </span>
++      )}
++    </span>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/components/stars.tsx work/src/components/stars.tsx
+--- base/src/components/stars.tsx	1970-01-01 00:00:00.000000000 +0000
++++ work/src/components/stars.tsx	2026-09-11 17:17:11.939000000 +0000
+@@ -0,0 +1,58 @@
++import { Star } from "lucide-react";
++import { cn } from "@/lib/utils";
++
++/** Read-only star row. Half stars are rounded to the nearest whole star. */
++export function Stars({ value, className }: { value: number; className?: string }) {
++  const rounded = Math.round(value);
++  return (
++    <span
++      className={cn("inline-flex items-center gap-0.5", className)}
++      aria-label={`${value.toFixed(1)} out of 5`}
++    >
++      {[1, 2, 3, 4, 5].map((n) => (
++        <Star
++          key={n}
++          aria-hidden
++          className={cn(
++            "size-4 transition-colors",
++            n <= rounded ? "fill-warning text-warning" : "text-muted-foreground/40",
++          )}
++        />
++      ))}
++    </span>
++  );
++}
++
++/** Keyboard-accessible star picker used by the public review form. */
++export function StarPicker({
++  value,
++  onChange,
++  label,
++}: {
++  value: number;
++  onChange: (v: number) => void;
++  label: string;
++}) {
++  return (
++    <div role="radiogroup" aria-label={label} className="flex items-center gap-1">
++      {[1, 2, 3, 4, 5].map((n) => (
++        <button
++          key={n}
++          type="button"
++          role="radio"
++          aria-checked={value === n}
++          aria-label={`${n} star${n > 1 ? "s" : ""}`}
++          onClick={() => onChange(n)}
++          className="rounded-md p-1 transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
++        >
++          <Star
++            className={cn(
++              "size-7",
++              n <= value ? "fill-warning text-warning" : "text-muted-foreground/40",
++            )}
++          />
++        </button>
++      ))}
++    </div>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/integrations/supabase/types.ts work/src/integrations/supabase/types.ts
+--- base/src/integrations/supabase/types.ts	2026-09-11 17:17:12.512000000 +0000
++++ work/src/integrations/supabase/types.ts	2026-09-11 17:19:24.330000000 +0000
+@@ -413,6 +413,141 @@
+           },
+         ]
+       }
++      customer_reviews: {
++        Row: {
++          cleanliness: number | null
++          comment: string | null
++          communication: number | null
++          created_at: string
++          customer_email: string | null
++          customer_name: string | null
++          id: string
++          org_id: string
++          property_id: string | null
++          rating: number
++          replied_at: string | null
++          replied_by: string | null
++          reply: string | null
++          source: string
++          status: string
++          task_id: string | null
++          updated_at: string
++        }
++        Insert: {
++          cleanliness?: number | null
++          comment?: string | null
++          communication?: number | null
++          created_at?: string
++          customer_email?: string | null
++          customer_name?: string | null
++          id?: string
++          org_id: string
++          property_id?: string | null
++          rating: number
++          replied_at?: string | null
++          replied_by?: string | null
++          reply?: string | null
++          source?: string
++          status?: string
++          task_id?: string | null
++          updated_at?: string
++        }
++        Update: {
++          cleanliness?: number | null
++          comment?: string | null
++          communication?: number | null
++          created_at?: string
++          customer_email?: string | null
++          customer_name?: string | null
++          id?: string
++          org_id?: string
++          property_id?: string | null
++          rating?: number
++          replied_at?: string | null
++          replied_by?: string | null
++          reply?: string | null
++          source?: string
++          status?: string
++          task_id?: string | null
++          updated_at?: string
++        }
++        Relationships: [
++          {
++            foreignKeyName: "customer_reviews_org_id_fkey"
++            columns: ["org_id"]
++            isOneToOne: false
++            referencedRelation: "organizations"
++            referencedColumns: ["id"]
++          },
++          {
++            foreignKeyName: "customer_reviews_property_id_fkey"
++            columns: ["property_id"]
++            isOneToOne: false
++            referencedRelation: "properties"
++            referencedColumns: ["id"]
++          },
++          {
++            foreignKeyName: "customer_reviews_task_id_fkey"
++            columns: ["task_id"]
++            isOneToOne: false
++            referencedRelation: "tasks"
++            referencedColumns: ["id"]
++          },
++        ]
++      }
++      invite_codes: {
++        Row: {
++          active: boolean
++          code: string
++          created_at: string
++          created_by: string | null
++          expires_at: string | null
++          id: string
++          label: string | null
++          max_uses: number
++          org_id: string
++          revoked_at: string | null
++          role: Database["public"]["Enums"]["app_role"]
++          uses: number
++        }
++        Insert: {
++          active?: boolean
++          code: string
++          created_at?: string
++          created_by?: string | null
++          expires_at?: string | null
++          id?: string
++          label?: string | null
++          max_uses?: number
++          org_id: string
++          revoked_at?: string | null
++          role?: Database["public"]["Enums"]["app_role"]
++          uses?: number
++        }
++        Update: {
++          active?: boolean
++          code?: string
++          created_at?: string
++          created_by?: string | null
++          expires_at?: string | null
++          id?: string
++          label?: string | null
++          max_uses?: number
++          org_id?: string
++          revoked_at?: string | null
++          role?: Database["public"]["Enums"]["app_role"]
++          uses?: number
++        }
++        Relationships: [
++          {
++            foreignKeyName: "invite_codes_org_id_fkey"
++            columns: ["org_id"]
++            isOneToOne: false
++            referencedRelation: "organizations"
++            referencedColumns: ["id"]
++          },
++        ]
++      }
+       maintenance_requests: {
+         Row: {
+           ai_confidence: number | null
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/lib/invites.functions.ts work/src/lib/invites.functions.ts
+--- base/src/lib/invites.functions.ts	1970-01-01 00:00:00.000000000 +0000
++++ work/src/lib/invites.functions.ts	2026-09-11 17:17:12.062000000 +0000
+@@ -0,0 +1,237 @@
++import { createServerFn } from "@tanstack/react-start";
++import { z } from "zod";
++import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
++
++/**
++ * Team invitation codes.
++ *
++ * A code carries the workspace and the role it grants, so redeeming it joins
++ * the holder as an active member with no approval round-trip. Codes are
++ * single-use unless a larger cap is chosen, expire, and can be revoked.
++ */
++
++// Unambiguous alphabet: no O/0, no I/1 — these get read aloud and retyped.
++const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
++
++function makeCode(length = 8) {
++  const bytes = new Uint8Array(length);
++  crypto.getRandomValues(bytes);
++  let out = "";
++  for (const b of bytes) out += ALPHABET[b % ALPHABET.length];
++  return `${out.slice(0, 4)}-${out.slice(4)}`;
++}
++
++const normalise = (code: string) => code.trim().toUpperCase().replace(/\s+/g, "");
++
++export type InviteCode = {
++  id: string;
++  code: string;
++  role: string;
++  label: string | null;
++  maxUses: number;
++  uses: number;
++  expiresAt: string | null;
++  active: boolean;
++  createdAt: string;
++};
++
++export const listInviteCodes = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
++  .handler(async ({ data, context }): Promise<InviteCode[]> => {
++    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++
++    const { data: rows } = await supabaseAdmin
++      .from("invite_codes")
++      .select("id, code, role, label, max_uses, uses, expires_at, active, revoked_at, created_at")
++      .eq("org_id", data.orgId)
++      .is("revoked_at", null)
++      .order("created_at", { ascending: false })
++      .limit(50);
++
++    return (rows ?? []).map((r) => ({
++      id: r.id,
++      code: r.code,
++      role: r.role,
++      label: r.label,
++      maxUses: r.max_uses,
++      uses: r.uses,
++      expiresAt: r.expires_at,
++      active: r.active && (!r.expires_at || new Date(r.expires_at) > new Date()),
++      createdAt: r.created_at,
++    }));
++  });
++
++export const createInviteCode = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        orgId: z.string().uuid(),
++        role: z.enum(["manager", "supervisor", "cleaner", "technician"]),
++        label: z.string().max(60).nullable().default(null),
++        maxUses: z.number().int().min(1).max(100).default(1),
++        expiresInDays: z.number().int().min(1).max(90).nullable().default(14),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    const expiresAt = data.expiresInDays
++      ? new Date(Date.now() + data.expiresInDays * 86_400_000).toISOString()
++      : null;
++
++    // Collisions are vanishingly unlikely, but the code column is unique —
++    // retry rather than surfacing a database error to a manager.
++    for (let attempt = 0; attempt < 5; attempt++) {
++      const code = makeCode();
++      const { data: row, error } = await supabaseAdmin
++        .from("invite_codes")
++        .insert({
++          org_id: data.orgId,
++          code,
++          role: data.role,
++          label: data.label,
++          max_uses: data.maxUses,
++          expires_at: expiresAt,
++          created_by: context.userId,
++        })
++        .select("id, code")
++        .single();
++
++      if (!error && row) {
++        await logAudit({
++          orgId: data.orgId,
++          actorId: context.userId,
++          action: "invite.created",
++          entityType: "invite_code",
++          entityId: row.id,
++          metadata: { role: data.role, maxUses: data.maxUses },
++        });
++        return { id: row.id, code: row.code };
++      }
++    }
++    throw new Error("Could not create an invitation code. Try again.");
++  });
++
++export const revokeInviteCode = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z.object({ orgId: z.string().uuid(), inviteId: z.string().uuid() }).parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    const { error } = await supabaseAdmin
++      .from("invite_codes")
++      .update({ active: false, revoked_at: new Date().toISOString() })
++      .eq("id", data.inviteId)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not revoke that code.");
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: "invite.revoked",
++      entityType: "invite_code",
++      entityId: data.inviteId,
++    });
++    return { ok: true };
++  });
++
++/** Redeem a code and join the workspace as an active member. */
++export const redeemInviteCode = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ code: z.string().min(4).max(24) }).parse(d))
++  .handler(async ({ data, context }) => {
++    const { supabaseAdmin, notifyStaff, logAudit } = await import("./ops.server");
++
++    const { data: invite } = await supabaseAdmin
++      .from("invite_codes")
++      .select("id, org_id, role, max_uses, uses, expires_at, active, revoked_at")
++      .eq("code", normalise(data.code))
++      .maybeSingle();
++
++    if (!invite || !invite.active || invite.revoked_at) {
++      throw new Error("That invitation code is not valid.");
++    }
++    if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
++      throw new Error("That invitation code has expired.");
++    }
++    if (invite.uses >= invite.max_uses) {
++      throw new Error("That invitation code has already been used.");
++    }
++
++    const { data: org } = await supabaseAdmin
++      .from("organizations")
++      .select("id, name")
++      .eq("id", invite.org_id)
++      .maybeSingle();
++    if (!org) throw new Error("That workspace no longer exists.");
++
++    const { data: existing } = await supabaseAdmin
++      .from("org_members")
++      .select("id, status")
++      .eq("org_id", invite.org_id)
++      .eq("user_id", context.userId)
++      .maybeSingle();
++
++    if (existing) {
++      // Already known to the workspace: the code simply activates them.
++      await supabaseAdmin
++        .from("org_members")
++        .update({ status: "active", role: invite.role, approved_at: new Date().toISOString() })
++        .eq("id", existing.id);
++    } else {
++      const { error } = await supabaseAdmin.from("org_members").insert({
++        org_id: invite.org_id,
++        user_id: context.userId,
++        role: invite.role,
++        status: "active",
++        approved_at: new Date().toISOString(),
++      });
++      if (error) throw new Error("Could not add you to that workspace.");
++    }
++
++    if (invite.role === "cleaner" || invite.role === "technician") {
++      await supabaseAdmin
++        .from("cleaner_profiles")
++        .upsert(
++          { org_id: invite.org_id, user_id: context.userId },
++          { onConflict: "org_id,user_id" },
++        );
++    }
++
++    const uses = invite.uses + 1;
++    await supabaseAdmin
++      .from("invite_codes")
++      .update({ uses, active: uses < invite.max_uses })
++      .eq("id", invite.id);
++
++    const { data: profile } = await supabaseAdmin
++      .from("profiles")
++      .select("full_name, email")
++      .eq("id", context.userId)
++      .maybeSingle();
++
++    await notifyStaff(invite.org_id, "member_joined_with_code", {
++      name: profile?.full_name ?? "Someone",
++      email: profile?.email ?? "",
++      role: invite.role,
++      org: org.name,
++    });
++    await logAudit({
++      orgId: invite.org_id,
++      actorId: context.userId,
++      action: "invite.redeemed",
++      entityType: "invite_code",
++      entityId: invite.id,
++      metadata: { role: invite.role },
++    });
++
++    return { orgId: invite.org_id, role: invite.role, orgName: org.name };
++  });
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/lib/ops.server.ts work/src/lib/ops.server.ts
+--- base/src/lib/ops.server.ts	2026-09-11 17:17:08.191000000 +0000
++++ work/src/lib/ops.server.ts	2026-09-11 17:18:26.956000000 +0000
+@@ -67,7 +67,9 @@
+   | "maintenance_reported"
+   | "maintenance_urgent"
+   | "member_pending"
+-  | "member_approved";
++  | "member_approved"
++  | "member_joined_with_code"
++  | "review_received";
+ 
+ const TEMPLATES: Record<NotificationTemplate, (d: Record<string, string>) => { subject: string; body: string }> = {
+   task_assigned: (d) => ({
+@@ -102,6 +104,14 @@
+     subject: `${d["name"]} asked to join ${d["org"]}`,
+     body: `${d["name"]} (${d["email"]}) is waiting for approval to join ${d["org"]}.`,
+   }),
++  member_joined_with_code: (d) => ({
++    subject: `${d["name"]} joined ${d["org"]}`,
++    body: `${d["name"]} (${d["email"]}) joined ${d["org"]} with an invitation code as ${d["role"]}.`,
++  }),
++  review_received: (d) => ({
++    subject: `New ${d["rating"]}-star guest review`,
++    body: `${d["guest"]} left a ${d["rating"]}-star review for ${d["org"]}. Open Reviews to read and reply.`,
++  }),
+   member_approved: (d) => ({
+     subject: `You are now part of ${d["org"]}`,
+     body: `Your request to join ${d["org"]} was approved. Your role is ${d["role"]}.`,
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/lib/reviews.functions.ts work/src/lib/reviews.functions.ts
+--- base/src/lib/reviews.functions.ts	1970-01-01 00:00:00.000000000 +0000
++++ work/src/lib/reviews.functions.ts	2026-09-11 17:20:02.854000000 +0000
+@@ -0,0 +1,227 @@
++import { createServerFn } from "@tanstack/react-start";
++import { z } from "zod";
++import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
++import type { Database } from "@/integrations/supabase/types";
++
++/**
++ * Customer reviews.
++ *
++ * Guests leave feedback through a public link (/r/<workspace-slug>), so the
++ * lookup and submit functions carry no auth middleware and write server-side
++ * after validating the payload themselves. Everything a manager does with a
++ * review is gated on workspace membership.
++ */
++
++export type CustomerReview = {
++  id: string;
++  rating: number;
++  cleanliness: number | null;
++  communication: number | null;
++  customerName: string | null;
++  comment: string | null;
++  status: "new" | "published" | "archived";
++  reply: string | null;
++  propertyName: string | null;
++  createdAt: string;
++};
++
++/** Public: resolve a workspace review link to the names a guest should see. */
++export const getReviewTarget = createServerFn({ method: "POST" })
++  .inputValidator((d: unknown) => z.object({ slug: z.string().min(1).max(60) }).parse(d))
++  .handler(async ({ data }) => {
++    const { supabaseAdmin } = await import("./ops.server");
++    const { data: org } = await supabaseAdmin
++      .from("organizations")
++      .select("id, name, slug")
++      .eq("slug", data.slug.trim().toLowerCase())
++      .maybeSingle();
++    if (!org) return null;
++
++    const { data: properties } = await supabaseAdmin
++      .from("properties")
++      .select("id, name")
++      .eq("org_id", org.id)
++      .order("name", { ascending: true })
++      .limit(200);
++
++    return {
++      orgName: org.name,
++      slug: org.slug,
++      properties: (properties ?? []).map((p) => ({ id: p.id, name: p.name })),
++    };
++  });
++
++/** Public: a guest submits a review. */
++export const submitReview = createServerFn({ method: "POST" })
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        slug: z.string().min(1).max(60),
++        propertyId: z.string().uuid().nullable().default(null),
++        rating: z.number().int().min(1).max(5),
++        cleanliness: z.number().int().min(1).max(5).nullable().default(null),
++        communication: z.number().int().min(1).max(5).nullable().default(null),
++        customerName: z.string().max(80).nullable().default(null),
++        customerEmail: z.string().email().max(160).nullable().default(null),
++        comment: z.string().max(2000).nullable().default(null),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data }) => {
++    const { supabaseAdmin, notifyStaff } = await import("./ops.server");
++
++    const { data: org } = await supabaseAdmin
++      .from("organizations")
++      .select("id, name")
++      .eq("slug", data.slug.trim().toLowerCase())
++      .maybeSingle();
++    if (!org) throw new Error("That review link is not valid.");
++
++    // A property id from the form must belong to this workspace.
++    let propertyId: string | null = null;
++    if (data.propertyId) {
++      const { data: property } = await supabaseAdmin
++        .from("properties")
++        .select("id")
++        .eq("id", data.propertyId)
++        .eq("org_id", org.id)
++        .maybeSingle();
++      propertyId = property?.id ?? null;
++    }
++
++    const { error } = await supabaseAdmin.from("customer_reviews").insert({
++      org_id: org.id,
++      property_id: propertyId,
++      rating: data.rating,
++      cleanliness: data.cleanliness,
++      communication: data.communication,
++      customer_name: data.customerName,
++      customer_email: data.customerEmail,
++      comment: data.comment,
++      source: "public_link",
++    });
++    if (error) throw new Error("Could not save your review. Please try again.");
++
++    await notifyStaff(org.id, "review_received", {
++      rating: String(data.rating),
++      guest: data.customerName ?? "A guest",
++      org: org.name,
++    });
++
++    return { ok: true };
++  });
++
++/** Public: published reviews shown on the landing page. */
++export const listShowcaseReviews = createServerFn({ method: "GET" }).handler(async () => {
++  const { supabaseAdmin } = await import("./ops.server");
++  const { data: rows } = await supabaseAdmin
++    .from("customer_reviews")
++    .select("id, rating, comment, customer_name, created_at")
++    .eq("status", "published")
++    .not("comment", "is", null)
++    .order("created_at", { ascending: false })
++    .limit(6);
++
++  return (rows ?? []).map((r) => ({
++    id: r.id,
++    rating: r.rating,
++    comment: r.comment,
++    // Only a first name is ever shown publicly.
++    name: (r.customer_name ?? "Guest").split(" ")[0] ?? "Guest",
++    createdAt: r.created_at,
++  }));
++});
++
++export const listReviews = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId);
++
++    const { data: rows } = await supabaseAdmin
++      .from("customer_reviews")
++      .select(
++        "id, rating, cleanliness, communication, customer_name, comment, status, reply, property_id, created_at",
++      )
++      .eq("org_id", data.orgId)
++      .order("created_at", { ascending: false })
++      .limit(200);
++
++    const propertyIds = [
++      ...new Set((rows ?? []).map((r) => r.property_id).filter(Boolean)),
++    ] as string[];
++    const { data: properties } = propertyIds.length
++      ? await supabaseAdmin.from("properties").select("id, name").in("id", propertyIds)
++      : { data: [] };
++    const nameById = new Map((properties ?? []).map((p) => [p.id, p.name]));
++
++    const reviews: CustomerReview[] = (rows ?? []).map((r) => ({
++      id: r.id,
++      rating: r.rating,
++      cleanliness: r.cleanliness,
++      communication: r.communication,
++      customerName: r.customer_name,
++      comment: r.comment,
++      status: r.status as CustomerReview["status"],
++      reply: r.reply,
++      propertyName: r.property_id ? (nameById.get(r.property_id) ?? null) : null,
++      createdAt: r.created_at,
++    }));
++
++    const scored = reviews.filter((r) => r.status !== "archived");
++    const average = scored.length ? scored.reduce((sum, r) => sum + r.rating, 0) / scored.length : 0;
++
++    return {
++      reviews,
++      stats: {
++        total: scored.length,
++        average,
++        promoters: scored.filter((r) => r.rating >= 4).length,
++        detractors: scored.filter((r) => r.rating <= 2).length,
++      },
++    };
++  });
++
++export const updateReview = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        orgId: z.string().uuid(),
++        reviewId: z.string().uuid(),
++        status: z.enum(["new", "published", "archived"]).optional(),
++        reply: z.string().max(2000).nullable().optional(),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    const patch: Database["public"]["Tables"]["customer_reviews"]["Update"] = {};
++    if (data.status) patch["status"] = data.status;
++    if (data.reply !== undefined) {
++      patch["reply"] = data.reply;
++      patch["replied_by"] = context.userId;
++      patch["replied_at"] = new Date().toISOString();
++    }
++    if (Object.keys(patch).length === 0) return { ok: true };
++
++    const { error } = await supabaseAdmin
++      .from("customer_reviews")
++      .update(patch)
++      .eq("id", data.reviewId)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not update that review.");
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: "review.updated",
++      entityType: "customer_review",
++      entityId: data.reviewId,
++      metadata: { status: data.status ?? null, replied: data.reply !== undefined },
++    });
++    return { ok: true };
++  });
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routeTree.gen.ts work/src/routeTree.gen.ts
+--- base/src/routeTree.gen.ts	2026-09-11 17:17:08.154000000 +0000
++++ work/src/routeTree.gen.ts	2026-09-11 17:19:21.272000000 +0000
+@@ -18,7 +18,9 @@
+ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+ import { Route as AuthenticatedPropertiesRouteImport } from './routes/_authenticated/properties'
+ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
++import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
+ import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
++import { Route as RSlugRouteImport } from './routes/r.$slug'
+ import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks.index'
+ import { Route as AuthenticatedTasksTaskIdRouteImport } from './routes/_authenticated/tasks.$taskId'
+ import { Route as ApiPublicCronNightlyRouteImport } from './routes/api/public/cron/nightly'
+@@ -68,6 +70,16 @@
+   path: '/settings',
+   getParentRoute: () => AuthenticatedRouteRoute,
+ } as any)
++const RSlugRoute = RSlugRouteImport.update({
++  id: '/r/$slug',
++  path: '/r/$slug',
++  getParentRoute: () => rootRouteImport,
++} as any)
++const AuthenticatedReviewsRoute = AuthenticatedReviewsRouteImport.update({
++  id: '/reviews',
++  path: '/reviews',
++  getParentRoute: () => AuthenticatedRouteRoute,
++} as any)
+ const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+   id: '/team',
+   path: '/team',
+@@ -98,8 +110,10 @@
+   '/maintenance': typeof AuthenticatedMaintenanceRoute
+   '/onboarding': typeof AuthenticatedOnboardingRoute
+   '/properties': typeof AuthenticatedPropertiesRoute
++  '/reviews': typeof AuthenticatedReviewsRoute
+   '/settings': typeof AuthenticatedSettingsRoute
+   '/team': typeof AuthenticatedTeamRoute
++  '/r/$slug': typeof RSlugRoute
+   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+   '/tasks/': typeof AuthenticatedTasksIndexRoute
+   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
+@@ -112,8 +126,10 @@
+   '/maintenance': typeof AuthenticatedMaintenanceRoute
+   '/onboarding': typeof AuthenticatedOnboardingRoute
+   '/properties': typeof AuthenticatedPropertiesRoute
++  '/reviews': typeof AuthenticatedReviewsRoute
+   '/settings': typeof AuthenticatedSettingsRoute
+   '/team': typeof AuthenticatedTeamRoute
++  '/r/$slug': typeof RSlugRoute
+   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+   '/tasks': typeof AuthenticatedTasksIndexRoute
+   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
+@@ -128,8 +144,10 @@
+   '/_authenticated/maintenance': typeof AuthenticatedMaintenanceRoute
+   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+   '/_authenticated/properties': typeof AuthenticatedPropertiesRoute
++  '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
+   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+   '/_authenticated/team': typeof AuthenticatedTeamRoute
++  '/r/$slug': typeof RSlugRoute
+   '/_authenticated/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
+   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
+@@ -144,8 +162,10 @@
+     | '/maintenance'
+     | '/onboarding'
+     | '/properties'
++    | '/reviews'
+     | '/settings'
+     | '/team'
++    | '/r/$slug'
+     | '/tasks/$taskId'
+     | '/tasks/'
+     | '/api/public/cron/nightly'
+@@ -158,8 +178,10 @@
+     | '/maintenance'
+     | '/onboarding'
+     | '/properties'
++    | '/reviews'
+     | '/settings'
+     | '/team'
++    | '/r/$slug'
+     | '/tasks/$taskId'
+     | '/tasks'
+     | '/api/public/cron/nightly'
+@@ -173,8 +195,10 @@
+     | '/_authenticated/maintenance'
+     | '/_authenticated/onboarding'
+     | '/_authenticated/properties'
++    | '/_authenticated/reviews'
+     | '/_authenticated/settings'
+     | '/_authenticated/team'
++    | '/r/$slug'
+     | '/_authenticated/tasks/$taskId'
+     | '/_authenticated/tasks/'
+     | '/api/public/cron/nightly'
+@@ -184,6 +208,7 @@
+   IndexRoute: typeof IndexRoute
+   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+   AuthRoute: typeof AuthRoute
++  RSlugRoute: typeof RSlugRoute
+   ApiPublicCronNightlyRoute: typeof ApiPublicCronNightlyRoute
+ }
+ 
+@@ -252,6 +277,20 @@
+       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+       parentRoute: typeof AuthenticatedRouteRoute
+     }
++    '/_authenticated/reviews': {
++      id: '/_authenticated/reviews'
++      path: '/reviews'
++      fullPath: '/reviews'
++      preLoaderRoute: typeof AuthenticatedReviewsRouteImport
++      parentRoute: typeof AuthenticatedRouteRoute
++    }
++    '/r/$slug': {
++      id: '/r/$slug'
++      path: '/r/$slug'
++      fullPath: '/r/$slug'
++      preLoaderRoute: typeof RSlugRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/_authenticated/team': {
+       id: '/_authenticated/team'
+       path: '/team'
+@@ -289,6 +328,7 @@
+   AuthenticatedMaintenanceRoute: typeof AuthenticatedMaintenanceRoute
+   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+   AuthenticatedPropertiesRoute: typeof AuthenticatedPropertiesRoute
++  AuthenticatedReviewsRoute: typeof AuthenticatedReviewsRoute
+   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+   AuthenticatedTasksTaskIdRoute: typeof AuthenticatedTasksTaskIdRoute
+@@ -301,6 +341,7 @@
+   AuthenticatedMaintenanceRoute: AuthenticatedMaintenanceRoute,
+   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+   AuthenticatedPropertiesRoute: AuthenticatedPropertiesRoute,
++  AuthenticatedReviewsRoute: AuthenticatedReviewsRoute,
+   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+   AuthenticatedTasksTaskIdRoute: AuthenticatedTasksTaskIdRoute,
+@@ -314,6 +355,7 @@
+   IndexRoute: IndexRoute,
+   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+   AuthRoute: AuthRoute,
++  RSlugRoute: RSlugRoute,
+   ApiPublicCronNightlyRoute: ApiPublicCronNightlyRoute,
+ }
+ export const routeTree = rootRouteImport
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/__root.tsx work/src/routes/__root.tsx
+--- base/src/routes/__root.tsx	2026-09-11 17:17:12.900000000 +0000
++++ work/src/routes/__root.tsx	2026-09-11 17:18:26.813000000 +0000
+@@ -80,7 +80,7 @@
+     meta: [
+       { charSet: "utf-8" },
+       { name: "viewport", content: "width=device-width, initial-scale=1" },
+-      { title: "OpsPilot — AI Property Operations" },
++      { title: "AirClean — AI Property Operations" },
+       {
+         name: "description",
+         content:
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/bookings.tsx work/src/routes/_authenticated/bookings.tsx
+--- base/src/routes/_authenticated/bookings.tsx	2026-09-11 17:17:12.891000000 +0000
++++ work/src/routes/_authenticated/bookings.tsx	2026-09-11 17:18:26.879000000 +0000
+@@ -18,9 +18,9 @@
+ export const Route = createFileRoute("/_authenticated/bookings")({
+   head: () => ({
+     meta: [
+-      { title: "Bookings | OpsPilot" },
++      { title: "Bookings | AirClean" },
+       { name: "description", content: "Add stays by hand or upload a CSV; turnover jobs are created for you." },
+-      { property: "og:title", content: "Bookings | OpsPilot" },
++      { property: "og:title", content: "Bookings | AirClean" },
+       { property: "og:description", content: "Stays in, turnovers scheduled automatically." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/dashboard.tsx work/src/routes/_authenticated/dashboard.tsx
+--- base/src/routes/_authenticated/dashboard.tsx	2026-09-11 17:17:08.215000000 +0000
++++ work/src/routes/_authenticated/dashboard.tsx	2026-09-11 17:18:26.869000000 +0000
+@@ -10,9 +10,9 @@
+ export const Route = createFileRoute("/_authenticated/dashboard")({
+   head: () => ({
+     meta: [
+-      { title: "Overview | OpsPilot" },
++      { title: "Overview | AirClean" },
+       { name: "description", content: "Today's turnovers, reviews, maintenance and team activity at a glance." },
+-      { property: "og:title", content: "Overview | OpsPilot" },
++      { property: "og:title", content: "Overview | AirClean" },
+       { property: "og:description", content: "Your turnover operations at a glance." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/maintenance.tsx work/src/routes/_authenticated/maintenance.tsx
+--- base/src/routes/_authenticated/maintenance.tsx	2026-09-11 17:17:12.917000000 +0000
++++ work/src/routes/_authenticated/maintenance.tsx	2026-09-11 17:18:26.929000000 +0000
+@@ -19,9 +19,9 @@
+ export const Route = createFileRoute("/_authenticated/maintenance")({
+   head: () => ({
+     meta: [
+-      { title: "Maintenance | OpsPilot" },
++      { title: "Maintenance | AirClean" },
+       { name: "description", content: "Report property issues with a photo, triage them by severity and track repairs." },
+-      { property: "og:title", content: "Maintenance | OpsPilot" },
++      { property: "og:title", content: "Maintenance | AirClean" },
+       { property: "og:description", content: "Report, triage and track property repairs." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/onboarding.tsx work/src/routes/_authenticated/onboarding.tsx
+--- base/src/routes/_authenticated/onboarding.tsx	2026-09-11 17:17:08.236000000 +0000
++++ work/src/routes/_authenticated/onboarding.tsx	2026-09-11 17:18:27.015000000 +0000
+@@ -3,6 +3,7 @@
+ import { toast } from "sonner";
+ import { useQueryClient } from "@tanstack/react-query";
+ import { createWorkspace, requestToJoin } from "@/lib/org.functions";
++import { redeemInviteCode } from "@/lib/invites.functions";
+ import { useWorkspace } from "@/hooks/useWorkspace";
+ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+@@ -14,10 +15,10 @@
+ export const Route = createFileRoute("/_authenticated/onboarding")({
+   head: () => ({
+     meta: [
+-      { title: "Set up your workspace | OpsPilot" },
+-      { name: "description", content: "Create a new OpsPilot workspace or join your team's existing one." },
+-      { property: "og:title", content: "Set up your workspace | OpsPilot" },
+-      { property: "og:description", content: "Create a workspace or join your team on OpsPilot." },
++      { title: "Set up your workspace | AirClean" },
++      { name: "description", content: "Create a new AirClean workspace or join your team's existing one." },
++      { property: "og:title", content: "Set up your workspace | AirClean" },
++      { property: "og:description", content: "Create a workspace or join your team on AirClean." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+     ],
+@@ -54,6 +55,7 @@
+   const [busy, setBusy] = useState(false);
+ 
+   const [code, setCode] = useState("");
++  const [inviteCode, setInviteCode] = useState("");
+   const [joinRole, setJoinRole] = useState<"cleaner" | "technician">("cleaner");
+ 
+   const create = async () => {
+@@ -78,6 +80,26 @@
+     }
+   };
+ 
++  const redeem = async () => {
++    if (inviteCode.trim().length < 4) {
++      toast.error("Enter the invitation code your manager sent you.");
++      return;
++    }
++    setBusy(true);
++    try {
++      const res = await redeemInviteCode({ data: { code: inviteCode.trim() } });
++      await refetch();
++      qc.invalidateQueries();
++      setOrgId(res.orgId);
++      toast.success(`You are in — welcome to ${res.orgName}.`);
++      navigate({ to: "/dashboard" });
++    } catch (e) {
++      toast.error(e instanceof Error ? e.message : "Could not use that code.");
++    } finally {
++      setBusy(false);
++    }
++  };
++
+   const join = async () => {
+     if (!code.trim()) {
+       toast.error("Enter the workspace code your manager gave you.");
+@@ -110,12 +132,32 @@
+           </CardDescription>
+         </CardHeader>
+         <CardContent>
+-          <Tabs defaultValue="create">
+-            <TabsList className="mb-4 grid w-full grid-cols-2">
++          <Tabs defaultValue="invite">
++            <TabsList className="mb-4 grid w-full grid-cols-3">
++              <TabsTrigger value="invite">Invitation code</TabsTrigger>
+               <TabsTrigger value="create">Create</TabsTrigger>
+               <TabsTrigger value="join">Join</TabsTrigger>
+             </TabsList>
+ 
++            <TabsContent value="invite" className="space-y-4">
++              <div className="space-y-2">
++                <Label htmlFor="inv-code">Invitation code</Label>
++                <Input
++                  id="inv-code"
++                  value={inviteCode}
++                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
++                  placeholder="AIRC-LEAN"
++                  className="font-mono tracking-widest"
++                />
++              </div>
++              <Button className="w-full" onClick={redeem} disabled={busy}>
++                Join the team
++              </Button>
++              <p className="text-xs text-muted-foreground">
++                A code puts you straight into the workspace with the role your manager chose.
++              </p>
++            </TabsContent>
++
+             <TabsContent value="create" className="space-y-4">
+               <div className="space-y-2">
+                 <Label htmlFor="ws-name">Workspace name</Label>
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/properties.tsx work/src/routes/_authenticated/properties.tsx
+--- base/src/routes/_authenticated/properties.tsx	2026-09-11 17:17:12.920000000 +0000
++++ work/src/routes/_authenticated/properties.tsx	2026-09-11 17:18:26.869000000 +0000
+@@ -17,9 +17,9 @@
+ export const Route = createFileRoute("/_authenticated/properties")({
+   head: () => ({
+     meta: [
+-      { title: "Properties | OpsPilot" },
++      { title: "Properties | AirClean" },
+       { name: "description", content: "Your units, turnaround times, access codes and cleaning notes." },
+-      { property: "og:title", content: "Properties | OpsPilot" },
++      { property: "og:title", content: "Properties | AirClean" },
+       { property: "og:description", content: "Units, turnaround times and access details." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/reviews.tsx work/src/routes/_authenticated/reviews.tsx
+--- base/src/routes/_authenticated/reviews.tsx	1970-01-01 00:00:00.000000000 +0000
++++ work/src/routes/_authenticated/reviews.tsx	2026-09-11 17:17:12.048000000 +0000
+@@ -0,0 +1,241 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { useState } from "react";
++import { toast } from "sonner";
++import { Archive, Copy, Link2, MessageSquareQuote, Star, TrendingUp } from "lucide-react";
++import { AppShell } from "@/components/app-shell";
++import { Stars } from "@/components/stars";
++import { useWorkspace, isAdmin } from "@/hooks/useWorkspace";
++import { listReviews, updateReview } from "@/lib/reviews.functions";
++import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
++import { Button } from "@/components/ui/button";
++import { Badge } from "@/components/ui/badge";
++import { Textarea } from "@/components/ui/textarea";
++import { Skeleton } from "@/components/ui/skeleton";
++import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
++
++export const Route = createFileRoute("/_authenticated/reviews")({
++  head: () => ({
++    meta: [
++      { title: "Reviews | AirClean" },
++      { name: "description", content: "Guest ratings and written feedback for your properties." },
++      { property: "og:title", content: "Reviews | AirClean" },
++      { property: "og:description", content: "Collect, answer and publish guest reviews." },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary" },
++    ],
++  }),
++  component: ReviewsPage,
++});
++
++type Filter = "all" | "new" | "published" | "archived";
++
++function ReviewsPage() {
++  const { orgId, workspace } = useWorkspace();
++  const admin = isAdmin(workspace?.role);
++  const qc = useQueryClient();
++  const [filter, setFilter] = useState<Filter>("all");
++  const [drafts, setDrafts] = useState<Record<string, string>>({});
++
++  const reviews = useQuery({
++    queryKey: ["reviews", orgId],
++    queryFn: () => listReviews({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
++
++  const mutate = useMutation({
++    mutationFn: (input: {
++      reviewId: string;
++      status?: "new" | "published" | "archived";
++      reply?: string | null;
++    }) => updateReview({ data: { orgId: orgId!, ...input } }),
++    onSuccess: () => {
++      toast.success("Review updated.");
++      void qc.invalidateQueries({ queryKey: ["reviews", orgId] });
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const stats = reviews.data?.stats;
++  const list = (reviews.data?.reviews ?? []).filter((r) => filter === "all" || r.status === filter);
++
++  const shareLink =
++    typeof window !== "undefined" && workspace
++      ? `${window.location.origin}/r/${workspace.slug}`
++      : "";
++
++  return (
++    <AppShell title="Reviews">
++      <div className="space-y-6">
++        <Card className="glow-ring overflow-hidden">
++          <CardHeader>
++            <CardTitle className="flex items-center gap-2 text-base">
++              <Link2 className="size-4" /> Your review link
++            </CardTitle>
++          </CardHeader>
++          <CardContent className="flex flex-wrap items-center gap-3">
++            <code className="rounded-lg border border-border bg-background/70 px-3 py-2 font-mono text-sm">
++              {shareLink || "…"}
++            </code>
++            <Button
++              variant="outline"
++              size="sm"
++              onClick={() => {
++                void navigator.clipboard.writeText(shareLink);
++                toast.success("Link copied. Send it to your guests.");
++              }}
++            >
++              <Copy className="mr-2 size-4" /> Copy
++            </Button>
++            <p className="text-sm text-muted-foreground">
++              Share it after checkout — guests rate the stay without signing in.
++            </p>
++          </CardContent>
++        </Card>
++
++        <div className="grid gap-4 sm:grid-cols-3">
++          <StatTile
++            icon={Star}
++            label="Average rating"
++            value={stats ? stats.average.toFixed(1) : "—"}
++            hint={stats ? `${stats.total} reviews` : ""}
++          />
++          <StatTile
++            icon={TrendingUp}
++            label="4 stars and up"
++            value={stats ? String(stats.promoters) : "—"}
++            hint="Happy guests"
++          />
++          <StatTile
++            icon={MessageSquareQuote}
++            label="Needs attention"
++            value={stats ? String(stats.detractors) : "—"}
++            hint="2 stars or less"
++          />
++        </div>
++
++        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
++          <TabsList>
++            <TabsTrigger value="all">All</TabsTrigger>
++            <TabsTrigger value="new">New</TabsTrigger>
++            <TabsTrigger value="published">Published</TabsTrigger>
++            <TabsTrigger value="archived">Archived</TabsTrigger>
++          </TabsList>
++        </Tabs>
++
++        {reviews.isLoading && <Skeleton className="h-40 w-full" />}
++
++        {!reviews.isLoading && list.length === 0 && (
++          <Card>
++            <CardContent className="p-10 text-center text-sm text-muted-foreground">
++              No reviews here yet. Share your review link after the next checkout.
++            </CardContent>
++          </Card>
++        )}
++
++        <div className="grid gap-4">
++          {list.map((r) => (
++            <Card key={r.id} className="hover-lift">
++              <CardContent className="space-y-3 p-6">
++                <div className="flex flex-wrap items-center gap-3">
++                  <Stars value={r.rating} />
++                  <span className="font-medium">{r.customerName ?? "Anonymous guest"}</span>
++                  {r.propertyName && <Badge variant="outline">{r.propertyName}</Badge>}
++                  <Badge variant={r.status === "published" ? "secondary" : "outline"}>
++                    {r.status}
++                  </Badge>
++                  <span className="ml-auto text-xs text-muted-foreground">
++                    {new Date(r.createdAt).toLocaleDateString()}
++                  </span>
++                </div>
++
++                {r.comment && <p className="text-sm text-muted-foreground">{r.comment}</p>}
++
++                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
++                  {r.cleanliness != null && <span>Cleanliness {r.cleanliness}/5</span>}
++                  {r.communication != null && <span>Communication {r.communication}/5</span>}
++                </div>
++
++                {r.reply && (
++                  <p className="rounded-lg bg-muted/50 p-3 text-sm">
++                    <span className="font-medium">Your reply: </span>
++                    {r.reply}
++                  </p>
++                )}
++
++                {admin && (
++                  <div className="space-y-2 border-t border-border pt-3">
++                    <Textarea
++                      rows={2}
++                      placeholder="Reply to this guest…"
++                      value={drafts[r.id] ?? r.reply ?? ""}
++                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
++                    />
++                    <div className="flex flex-wrap gap-2">
++                      <Button
++                        size="sm"
++                        variant="outline"
++                        onClick={() =>
++                          mutate.mutate({
++                            reviewId: r.id,
++                            reply: (drafts[r.id] ?? r.reply ?? "").trim() || null,
++                          })
++                        }
++                      >
++                        Save reply
++                      </Button>
++                      {r.status !== "published" && (
++                        <Button
++                          size="sm"
++                          onClick={() => mutate.mutate({ reviewId: r.id, status: "published" })}
++                        >
++                          Publish
++                        </Button>
++                      )}
++                      {r.status !== "archived" && (
++                        <Button
++                          size="sm"
++                          variant="ghost"
++                          onClick={() => mutate.mutate({ reviewId: r.id, status: "archived" })}
++                        >
++                          <Archive className="mr-2 size-4" /> Archive
++                        </Button>
++                      )}
++                    </div>
++                  </div>
++                )}
++              </CardContent>
++            </Card>
++          ))}
++        </div>
++      </div>
++    </AppShell>
++  );
++}
++
++function StatTile({
++  icon: Icon,
++  label,
++  value,
++  hint,
++}: {
++  icon: typeof Star;
++  label: string;
++  value: string;
++  hint: string;
++}) {
++  return (
++    <Card className="hover-lift">
++      <CardContent className="flex items-center gap-4 p-6">
++        <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
++          <Icon className="size-5" />
++        </span>
++        <div>
++          <p className="text-sm text-muted-foreground">{label}</p>
++          <p className="font-display text-2xl font-semibold">{value}</p>
++          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
++        </div>
++      </CardContent>
++    </Card>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/settings.tsx work/src/routes/_authenticated/settings.tsx
+--- base/src/routes/_authenticated/settings.tsx	2026-09-11 17:17:12.891000000 +0000
++++ work/src/routes/_authenticated/settings.tsx	2026-09-11 17:18:26.891000000 +0000
+@@ -19,9 +19,9 @@
+ export const Route = createFileRoute("/_authenticated/settings")({
+   head: () => ({
+     meta: [
+-      { title: "Settings | OpsPilot" },
++      { title: "Settings | AirClean" },
+       { name: "description", content: "Appearance, your details, workspace rules, exports, backups and the activity trail." },
+-      { property: "og:title", content: "Settings | OpsPilot" },
++      { property: "og:title", content: "Settings | AirClean" },
+       { property: "og:description", content: "Appearance, workspace rules, exports and backups." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/tasks.$taskId.tsx work/src/routes/_authenticated/tasks.$taskId.tsx
+--- base/src/routes/_authenticated/tasks.$taskId.tsx	2026-09-11 17:17:08.296000000 +0000
++++ work/src/routes/_authenticated/tasks.$taskId.tsx	2026-09-11 17:18:26.977000000 +0000
+@@ -29,9 +29,9 @@
+ export const Route = createFileRoute("/_authenticated/tasks/$taskId")({
+   head: () => ({
+     meta: [
+-      { title: "Task | OpsPilot" },
++      { title: "Task | AirClean" },
+       { name: "description", content: "Checklist, photos, quality result and assignment for a single job." },
+-      { property: "og:title", content: "Task | OpsPilot" },
++      { property: "og:title", content: "Task | AirClean" },
+       { property: "og:description", content: "Checklist, photos and quality result for a job." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/tasks.index.tsx work/src/routes/_authenticated/tasks.index.tsx
+--- base/src/routes/_authenticated/tasks.index.tsx	2026-09-11 17:17:12.907000000 +0000
++++ work/src/routes/_authenticated/tasks.index.tsx	2026-09-11 17:18:26.711000000 +0000
+@@ -13,9 +13,9 @@
+ export const Route = createFileRoute("/_authenticated/tasks/")({
+   head: () => ({
+     meta: [
+-      { title: "Tasks | OpsPilot" },
++      { title: "Tasks | AirClean" },
+       { name: "description", content: "Every turnover, deep clean and inspection with its status and deadline." },
+-      { property: "og:title", content: "Tasks | OpsPilot" },
++      { property: "og:title", content: "Tasks | AirClean" },
+       { property: "og:description", content: "Turnover jobs, deadlines and quality status." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/_authenticated/team.tsx work/src/routes/_authenticated/team.tsx
+--- base/src/routes/_authenticated/team.tsx	2026-09-11 17:17:08.491000000 +0000
++++ work/src/routes/_authenticated/team.tsx	2026-09-11 17:20:02.846000000 +0000
+@@ -4,6 +4,11 @@
+ import { AppShell } from "@/components/app-shell";
+ import { useWorkspace, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
+ import { listMembers, setMemberStatus, updateCleanerProfile } from "@/lib/org.functions";
++import { createInviteCode, listInviteCodes, revokeInviteCode } from "@/lib/invites.functions";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Copy, Ticket, Trash2 } from "lucide-react";
++import { useState } from "react";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Button } from "@/components/ui/button";
+ import { Badge } from "@/components/ui/badge";
+@@ -13,9 +18,9 @@
+ export const Route = createFileRoute("/_authenticated/team")({
+   head: () => ({
+     meta: [
+-      { title: "Team | OpsPilot" },
++      { title: "Team | AirClean" },
+       { name: "description", content: "Approve people who ask to join, set roles and manage cleaner availability." },
+-      { property: "og:title", content: "Team | OpsPilot" },
++      { property: "og:title", content: "Team | AirClean" },
+       { property: "og:description", content: "Approvals, roles and cleaner settings." },
+       { property: "og:type", content: "website" },
+       { name: "twitter:card", content: "summary" },
+@@ -69,17 +74,7 @@
+   return (
+     <AppShell title="Team">
+       <div className="space-y-6">
+-        <Card>
+-          <CardHeader>
+-            <CardTitle className="text-base">Workspace code</CardTitle>
+-          </CardHeader>
+-          <CardContent>
+-            <p className="text-sm text-muted-foreground">
+-              Share this code so your team can request access:{" "}
+-              <span className="font-mono font-medium text-foreground">{workspace?.slug}</span>
+-            </p>
+-          </CardContent>
+-        </Card>
++        <InviteCodes orgId={orgId} admin={admin} slug={workspace?.slug} />
+ 
+         {members.isLoading && <Skeleton className="h-40 w-full" />}
+ 
+@@ -229,3 +224,183 @@
+     </AppShell>
+   );
+ }
++
++
++/**
++ * Invitation codes.
++ *
++ * A code carries its role, so anyone who enters it joins straight away — the
++ * older workspace-code route still exists and keeps its approval step.
++ */
++function InviteCodes({
++  orgId,
++  admin,
++  slug,
++}: {
++  orgId: string | null;
++  admin: boolean;
++  slug?: string | undefined;
++}) {
++  const qc = useQueryClient();
++  const [role, setRole] = useState<"manager" | "supervisor" | "cleaner" | "technician">("cleaner");
++  const [label, setLabel] = useState("");
++  const [maxUses, setMaxUses] = useState(1);
++  const [days, setDays] = useState(14);
++
++  const codes = useQuery({
++    queryKey: ["invite-codes", orgId],
++    queryFn: () => listInviteCodes({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
++
++  const create = useMutation({
++    mutationFn: () =>
++      createInviteCode({
++        data: {
++          orgId: orgId!,
++          role,
++          label: label.trim() || null,
++          maxUses,
++          expiresInDays: days || null,
++        },
++      }),
++    onSuccess: (res) => {
++      toast.success(`Invitation code ${res.code} is ready.`);
++      setLabel("");
++      void qc.invalidateQueries({ queryKey: ["invite-codes", orgId] });
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const revoke = useMutation({
++    mutationFn: (inviteId: string) => revokeInviteCode({ data: { orgId: orgId!, inviteId } }),
++    onSuccess: () => {
++      toast.success("Code revoked.");
++      void qc.invalidateQueries({ queryKey: ["invite-codes", orgId] });
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  return (
++    <Card className="glow-ring">
++      <CardHeader>
++        <CardTitle className="flex items-center gap-2 text-base">
++          <Ticket className="size-4" /> Invitation codes
++        </CardTitle>
++      </CardHeader>
++      <CardContent className="space-y-5">
++        <p className="text-sm text-muted-foreground">
++          Send a code and the person joins with the role built in — no approval needed. Your older
++          workspace code{" "}
++          <span className="font-mono font-medium text-foreground">{slug}</span> still works for
++          requests that you approve by hand.
++        </p>
++
++        {admin && (
++          <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-4">
++            <div className="space-y-2">
++              <Label htmlFor="inv-role">Joins as</Label>
++              <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
++                <SelectTrigger id="inv-role">
++                  <SelectValue />
++                </SelectTrigger>
++                <SelectContent>
++                  <SelectItem value="cleaner">Cleaner</SelectItem>
++                  <SelectItem value="technician">Maintenance technician</SelectItem>
++                  <SelectItem value="supervisor">Supervisor</SelectItem>
++                  <SelectItem value="manager">Manager</SelectItem>
++                </SelectContent>
++              </Select>
++            </div>
++            <div className="space-y-2">
++              <Label htmlFor="inv-label">Label (optional)</Label>
++              <Input
++                id="inv-label"
++                value={label}
++                maxLength={60}
++                placeholder="Summer crew"
++                onChange={(e) => setLabel(e.target.value)}
++              />
++            </div>
++            <div className="space-y-2">
++              <Label htmlFor="inv-uses">How many people</Label>
++              <Input
++                id="inv-uses"
++                type="number"
++                min={1}
++                max={100}
++                value={maxUses}
++                onChange={(e) => setMaxUses(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
++              />
++            </div>
++            <div className="space-y-2">
++              <Label htmlFor="inv-days">Valid for (days)</Label>
++              <Input
++                id="inv-days"
++                type="number"
++                min={1}
++                max={90}
++                value={days}
++                onChange={(e) => setDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
++              />
++            </div>
++            <Button
++              className="sm:col-span-4"
++              onClick={() => create.mutate()}
++              disabled={create.isPending}
++            >
++              Generate invitation code
++            </Button>
++          </div>
++        )}
++
++        {codes.isLoading && <Skeleton className="h-16 w-full" />}
++
++        <div className="divide-y divide-border">
++          {(codes.data ?? []).map((c) => (
++            <div key={c.id} className="flex flex-wrap items-center gap-3 py-3">
++              <code className="rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-sm">
++                {c.code}
++              </code>
++              <Badge variant="outline">{ROLE_LABEL[c.role] ?? c.role}</Badge>
++              {c.label && <span className="text-sm text-muted-foreground">{c.label}</span>}
++              <span className="text-xs text-muted-foreground">
++                {c.uses}/{c.maxUses} used
++                {c.expiresAt ? ` · until ${new Date(c.expiresAt).toLocaleDateString()}` : ""}
++              </span>
++              {!c.active && <Badge variant="secondary">Used up or expired</Badge>}
++              <div className="ml-auto flex gap-1">
++                <Button
++                  size="sm"
++                  variant="ghost"
++                  aria-label="Copy code"
++                  onClick={() => {
++                    void navigator.clipboard.writeText(c.code);
++                    toast.success("Code copied.");
++                  }}
++                >
++                  <Copy className="size-4" />
++                </Button>
++                {admin && (
++                  <Button
++                    size="sm"
++                    variant="ghost"
++                    aria-label="Revoke code"
++                    onClick={() => revoke.mutate(c.id)}
++                  >
++                    <Trash2 className="size-4" />
++                  </Button>
++                )}
++              </div>
++            </div>
++          ))}
++          {!codes.isLoading && (codes.data ?? []).length === 0 && (
++            <p className="py-3 text-sm text-muted-foreground">
++              No active codes yet.
++            </p>
++          )}
++        </div>
++      </CardContent>
++    </Card>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/auth.tsx work/src/routes/auth.tsx
+--- base/src/routes/auth.tsx	2026-09-11 17:17:08.531000000 +0000
++++ work/src/routes/auth.tsx	2026-09-11 17:18:26.805000000 +0000
+@@ -12,13 +12,13 @@
+ export const Route = createFileRoute("/auth")({
+   head: () => ({
+     meta: [
+-      { title: "Sign in — OpsPilot property operations" },
++      { title: "Sign in — AirClean property operations" },
+       {
+         name: "description",
+         content:
+           "Sign in or create an account to run turnover cleaning, quality checks and maintenance for your short-stay properties.",
+       },
+-      { property: "og:title", content: "Sign in to OpsPilot" },
++      { property: "og:title", content: "Sign in to AirClean" },
+       { property: "og:description", content: "Access your property operations workspace." },
+     ],
+   }),
+@@ -89,7 +89,7 @@
+     <main className="grid min-h-screen lg:grid-cols-2">
+       <section className="hidden flex-col justify-between bg-surface p-12 lg:flex">
+         <Link to="/" className="font-display text-lg font-semibold tracking-tight">
+-          OpsPilot
++          AirClean
+         </Link>
+         <div className="max-w-md space-y-4">
+           <h1 className="font-display text-4xl font-semibold leading-tight tracking-tight">
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/index.tsx work/src/routes/index.tsx
+--- base/src/routes/index.tsx	2026-09-11 17:17:08.646000000 +0000
++++ work/src/routes/index.tsx	2026-09-11 17:18:26.805000000 +0000
+@@ -8,13 +8,13 @@
+ export const Route = createFileRoute("/")({
+   head: () => ({
+     meta: [
+-      { title: "OpsPilot — Turnover cleaning operations for short-stay hosts" },
++      { title: "AirClean — Turnover cleaning operations for short-stay hosts" },
+       {
+         name: "description",
+         content:
+           "Plan turnovers from your bookings, assign the right cleaner, verify finished work from photos and keep maintenance moving — in one clean workspace.",
+       },
+-      { property: "og:title", content: "OpsPilot — Turnover cleaning operations" },
++      { property: "og:title", content: "AirClean — Turnover cleaning operations" },
+       {
+         property: "og:description",
+         content:
+@@ -73,7 +73,7 @@
+         <span className="grid size-9 place-items-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">
+           OP
+         </span>
+-        <span className="font-display text-lg font-semibold tracking-tight">OpsPilot</span>
++        <span className="font-display text-lg font-semibold tracking-tight">AirClean</span>
+         <div className="ml-auto flex items-center gap-2">
+           {signedIn ? (
+             <Button asChild>
+@@ -100,7 +100,7 @@
+           Every stay ends clean, on time, and checked.
+         </h1>
+         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
+-          OpsPilot turns your bookings into turnover jobs, puts them with the right cleaner,
++          AirClean turns your bookings into turnover jobs, puts them with the right cleaner,
+           verifies the finished work from photos, and keeps maintenance from slipping through.
+         </p>
+         <div className="mt-8 flex flex-wrap gap-3">
+@@ -135,7 +135,7 @@
+       </section>
+ 
+       <footer className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-8 text-sm text-muted-foreground">
+-        <span>© {new Date().getFullYear()} OpsPilot</span>
++        <span>© {new Date().getFullYear()} AirClean</span>
+         <span className="ml-auto">Built for property managers and their cleaning teams.</span>
+       </footer>
+     </div>
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/routes/r.$slug.tsx work/src/routes/r.$slug.tsx
+--- base/src/routes/r.$slug.tsx	1970-01-01 00:00:00.000000000 +0000
++++ work/src/routes/r.$slug.tsx	2026-09-11 17:17:12.071000000 +0000
+@@ -0,0 +1,221 @@
++import { createFileRoute, useParams } from "@tanstack/react-router";
++import { useEffect, useState } from "react";
++import { toast } from "sonner";
++import { CheckCircle2, Sparkles } from "lucide-react";
++import { AirCleanLogo } from "@/components/brand";
++import { StarPicker } from "@/components/stars";
++import { getReviewTarget, submitReview } from "@/lib/reviews.functions";
++import { Button } from "@/components/ui/button";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Textarea } from "@/components/ui/textarea";
++import { Skeleton } from "@/components/ui/skeleton";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
++
++export const Route = createFileRoute("/r/$slug")({
++  head: () => ({
++    meta: [
++      { title: "Rate your stay | AirClean" },
++      { name: "description", content: "Tell your host how clean and comfortable your stay was." },
++      { property: "og:title", content: "Rate your stay | AirClean" },
++      { property: "og:description", content: "Leave a quick review — no account needed." },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary" },
++    ],
++  }),
++  component: PublicReview,
++});
++
++type Target = Awaited<ReturnType<typeof getReviewTarget>>;
++
++function PublicReview() {
++  const { slug } = useParams({ from: "/r/$slug" });
++
++  // The page is public, so the lookup runs from the component rather than a
++  // loader — prerender has no session and needs none here.
++  const [target, setTarget] = useState<Target | undefined>(undefined);
++  const [rating, setRating] = useState(0);
++  const [cleanliness, setCleanliness] = useState(0);
++  const [communication, setCommunication] = useState(0);
++  const [propertyId, setPropertyId] = useState("none");
++  const [name, setName] = useState("");
++  const [email, setEmail] = useState("");
++  const [comment, setComment] = useState("");
++  const [busy, setBusy] = useState(false);
++  const [done, setDone] = useState(false);
++
++  useEffect(() => {
++    let alive = true;
++    getReviewTarget({ data: { slug } })
++      .then((t) => {
++        if (alive) setTarget(t);
++      })
++      .catch(() => {
++        if (alive) setTarget(null);
++      });
++    return () => {
++      alive = false;
++    };
++  }, [slug]);
++
++  const send = async () => {
++    if (rating < 1) {
++      toast.error("Pick a star rating first.");
++      return;
++    }
++    setBusy(true);
++    try {
++      await submitReview({
++        data: {
++          slug,
++          propertyId: propertyId === "none" ? null : propertyId,
++          rating,
++          cleanliness: cleanliness || null,
++          communication: communication || null,
++          customerName: name.trim() || null,
++          customerEmail: email.trim() || null,
++          comment: comment.trim() || null,
++        },
++      });
++      setDone(true);
++    } catch (e) {
++      toast.error(e instanceof Error ? e.message : "Could not send your review.");
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  return (
++    <div className="relative min-h-screen overflow-hidden bg-background">
++      <div className="aurora" aria-hidden />
++      <header className="relative mx-auto flex max-w-3xl items-center px-4 py-6">
++        <AirCleanLogo />
++      </header>
++
++      <main className="relative mx-auto max-w-2xl px-4 pb-20">
++        {target === undefined && <Skeleton className="h-72 w-full" />}
++
++        {target === null && (
++          <Card>
++            <CardContent className="p-10 text-center">
++              <p className="font-display text-xl font-semibold">This review link is not valid</p>
++              <p className="mt-2 text-sm text-muted-foreground">
++                Check the link with your host — it may have changed.
++              </p>
++            </CardContent>
++          </Card>
++        )}
++
++        {target && done && (
++          <Card className="glow-ring">
++            <CardContent className="space-y-3 p-10 text-center">
++              <CheckCircle2 className="animate-pop mx-auto size-12 text-success" />
++              <p className="font-display text-2xl font-semibold">Thank you</p>
++              <p className="text-sm text-muted-foreground">
++                {target.orgName} has your feedback. It helps their cleaning team a lot.
++              </p>
++            </CardContent>
++          </Card>
++        )}
++
++        {target && !done && (
++          <Card className="animate-rise">
++            <CardHeader>
++              <CardTitle className="flex items-center gap-2 font-display text-2xl">
++                <Sparkles className="size-5 text-primary" /> How was your stay?
++              </CardTitle>
++              <CardDescription>
++                A minute of feedback for {target.orgName}. No account needed.
++              </CardDescription>
++            </CardHeader>
++            <CardContent className="space-y-6">
++              <div className="space-y-2">
++                <Label>Overall</Label>
++                <StarPicker value={rating} onChange={setRating} label="Overall rating" />
++              </div>
++
++              <div className="grid gap-6 sm:grid-cols-2">
++                <div className="space-y-2">
++                  <Label>Cleanliness</Label>
++                  <StarPicker value={cleanliness} onChange={setCleanliness} label="Cleanliness" />
++                </div>
++                <div className="space-y-2">
++                  <Label>Communication</Label>
++                  <StarPicker
++                    value={communication}
++                    onChange={setCommunication}
++                    label="Communication"
++                  />
++                </div>
++              </div>
++
++              {target.properties.length > 0 && (
++                <div className="space-y-2">
++                  <Label htmlFor="property">Which place did you stay in?</Label>
++                  <Select value={propertyId} onValueChange={setPropertyId}>
++                    <SelectTrigger id="property">
++                      <SelectValue placeholder="Choose a property" />
++                    </SelectTrigger>
++                    <SelectContent>
++                      <SelectItem value="none">I would rather not say</SelectItem>
++                      {target.properties.map((p) => (
++                        <SelectItem key={p.id} value={p.id}>
++                          {p.name}
++                        </SelectItem>
++                      ))}
++                    </SelectContent>
++                  </Select>
++                </div>
++              )}
++
++              <div className="space-y-2">
++                <Label htmlFor="comment">Anything you want the team to know?</Label>
++                <Textarea
++                  id="comment"
++                  rows={4}
++                  maxLength={2000}
++                  value={comment}
++                  onChange={(e) => setComment(e.target.value)}
++                  placeholder="The flat was spotless and the towels smelled great…"
++                />
++              </div>
++
++              <div className="grid gap-4 sm:grid-cols-2">
++                <div className="space-y-2">
++                  <Label htmlFor="name">Your name (optional)</Label>
++                  <Input
++                    id="name"
++                    value={name}
++                    maxLength={80}
++                    onChange={(e) => setName(e.target.value)}
++                  />
++                </div>
++                <div className="space-y-2">
++                  <Label htmlFor="email">Email (optional)</Label>
++                  <Input
++                    id="email"
++                    type="email"
++                    value={email}
++                    maxLength={160}
++                    onChange={(e) => setEmail(e.target.value)}
++                  />
++                </div>
++              </div>
++
++              <Button size="lg" className="w-full" disabled={busy} onClick={send}>
++                {busy ? "Sending…" : "Send review"}
++              </Button>
++            </CardContent>
++          </Card>
++        )}
++      </main>
++    </div>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/src/styles.css work/src/styles.css
+--- base/src/styles.css	2026-09-11 17:17:08.662000000 +0000
++++ work/src/styles.css	2026-09-11 17:18:26.885000000 +0000
+@@ -5,7 +5,7 @@
+ @custom-variant dark (&:is(.dark *));
+ 
+ /*
+- * OpsPilot design system.
++ * AirClean design system.
+  * Futuristic-neutral: cool graphite surfaces, one vivid signal accent,
+  * geometric display type for emphasis, humanist sans for body, mono for IDs.
+  *
+@@ -257,3 +257,111 @@
+ [data-density="spacious"] {
+   --radius: 1rem;
+ }
++
++/* ---------------------------------------------------------------- motion --
++ * Brand motion: slow and water-like, never attention-grabbing. Everything
++ * below is switched off for visitors who ask for reduced motion.
++ */
++
++@keyframes airclean-sheen {
++  0%, 100% { opacity: 0.35; transform: translateY(0); }
++  50% { opacity: 1; transform: translateY(-1px); }
++}
++
++@keyframes airclean-drift {
++  0%, 100% { transform: translateX(0); opacity: 0.55; }
++  50% { transform: translateX(2.5px); opacity: 1; }
++}
++
++@keyframes airclean-float {
++  0%, 100% { transform: translateY(0); }
++  50% { transform: translateY(-8px); }
++}
++
++@keyframes airclean-rise {
++  from { opacity: 0; transform: translateY(14px); }
++  to { opacity: 1; transform: none; }
++}
++
++@keyframes airclean-pop {
++  0% { transform: scale(0.6); opacity: 0; }
++  70% { transform: scale(1.08); opacity: 1; }
++  100% { transform: scale(1); }
++}
++
++@keyframes airclean-aurora {
++  0% { transform: translate3d(-6%, -4%, 0) scale(1); }
++  50% { transform: translate3d(6%, 4%, 0) scale(1.12); }
++  100% { transform: translate3d(-6%, -4%, 0) scale(1); }
++}
++
++@keyframes airclean-shimmer {
++  from { background-position: 200% 0; }
++  to { background-position: -200% 0; }
++}
++
++@utility animate-sheen {
++  animation: airclean-sheen 3.2s ease-in-out infinite;
++}
++
++@utility animate-drift {
++  animation: airclean-drift 4s ease-in-out infinite;
++}
++
++@utility animate-float {
++  animation: airclean-float 6s ease-in-out infinite;
++}
++
++@utility animate-rise {
++  animation: airclean-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
++}
++
++@utility animate-pop {
++  animation: airclean-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
++}
++
++/* Soft moving colour wash behind hero and public pages. */
++@utility aurora {
++  position: absolute;
++  inset: -20% -10% auto -10%;
++  height: 60vh;
++  pointer-events: none;
++  z-index: 0;
++  background:
++    radial-gradient(40% 50% at 20% 30%, color-mix(in oklab, var(--primary) 32%, transparent), transparent 70%),
++    radial-gradient(35% 45% at 75% 20%, color-mix(in oklab, var(--primary-glow) 34%, transparent), transparent 70%);
++  filter: blur(46px);
++  animation: airclean-aurora 18s ease-in-out infinite;
++}
++
++/* Gentle lift on cards and tiles. */
++@utility hover-lift {
++  transition: transform var(--transition-base), box-shadow var(--transition-base);
++
++  &:hover {
++    transform: translateY(-3px);
++    box-shadow: var(--shadow-glow);
++  }
++}
++
++/* Sweeping highlight for headline words. */
++@utility shimmer-text {
++  background: linear-gradient(100deg, var(--primary) 20%, var(--primary-glow) 40%, var(--primary) 60%);
++  background-size: 200% auto;
++  -webkit-background-clip: text;
++  background-clip: text;
++  color: transparent;
++  animation: airclean-shimmer 6s linear infinite;
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .animate-sheen,
++  .animate-drift,
++  .animate-float,
++  .animate-rise,
++  .animate-pop,
++  .aurora,
++  .shimmer-text {
++    animation: none !important;
++  }
++}
+diff -ruN '--exclude=node_modules' '--exclude=.git' base/supabase/migrations/20260912000000_airclean_invites_and_reviews.sql work/supabase/migrations/20260912000000_airclean_invites_and_reviews.sql
+--- base/supabase/migrations/20260912000000_airclean_invites_and_reviews.sql	1970-01-01 00:00:00.000000000 +0000
++++ work/supabase/migrations/20260912000000_airclean_invites_and_reviews.sql	2026-09-11 17:17:12.070000000 +0000
+@@ -0,0 +1,97 @@
++-- AirClean: team invitation codes + customer reviews.
++
++-- ---------------------------------------------------------------- invitations
++create table public.invite_codes (
++  id uuid primary key default gen_random_uuid(),
++  org_id uuid not null references public.organizations(id) on delete cascade,
++  code text not null unique,
++  role public.app_role not null default 'cleaner',
++  label text,
++  max_uses integer not null default 1 check (max_uses between 1 and 100),
++  uses integer not null default 0 check (uses >= 0),
++  expires_at timestamptz,
++  active boolean not null default true,
++  revoked_at timestamptz,
++  created_by uuid references auth.users(id) on delete set null,
++  created_at timestamptz not null default now()
++);
++
++grant select on public.invite_codes to authenticated;
++grant all on public.invite_codes to service_role;
++
++alter table public.invite_codes enable row level security;
++
++-- Staff can see the codes for their own workspace. Redemption runs server-side
++-- with the service role, so no anon access is needed here.
++create policy "Staff read invite codes"
++  on public.invite_codes for select to authenticated
++  using (
++    exists (
++      select 1 from public.org_members m
++      where m.org_id = invite_codes.org_id
++        and m.user_id = auth.uid()
++        and m.status = 'active'
++        and m.role in ('owner', 'manager', 'supervisor')
++    )
++  );
++
++create index invite_codes_org_idx on public.invite_codes (org_id, created_at desc);
++create index invite_codes_code_idx on public.invite_codes (code);
++
++-- -------------------------------------------------------------------- reviews
++create table public.customer_reviews (
++  id uuid primary key default gen_random_uuid(),
++  org_id uuid not null references public.organizations(id) on delete cascade,
++  property_id uuid references public.properties(id) on delete set null,
++  task_id uuid references public.tasks(id) on delete set null,
++  rating integer not null check (rating between 1 and 5),
++  cleanliness integer check (cleanliness between 1 and 5),
++  communication integer check (communication between 1 and 5),
++  customer_name text,
++  customer_email text,
++  comment text,
++  source text not null default 'public_link',
++  status text not null default 'new' check (status in ('new', 'published', 'archived')),
++  reply text,
++  replied_by uuid references auth.users(id) on delete set null,
++  replied_at timestamptz,
++  created_at timestamptz not null default now(),
++  updated_at timestamptz not null default now()
++);
++
++grant select on public.customer_reviews to authenticated;
++grant all on public.customer_reviews to service_role;
++
++alter table public.customer_reviews enable row level security;
++
++-- Guests submit through a server function using the service role, so writes are
++-- validated in code rather than opened up to anon here.
++create policy "Members read their workspace reviews"
++  on public.customer_reviews for select to authenticated
++  using (
++    exists (
++      select 1 from public.org_members m
++      where m.org_id = customer_reviews.org_id
++        and m.user_id = auth.uid()
++        and m.status = 'active'
++    )
++  );
++
++create policy "Admins update their workspace reviews"
++  on public.customer_reviews for update to authenticated
++  using (
++    exists (
++      select 1 from public.org_members m
++      where m.org_id = customer_reviews.org_id
++        and m.user_id = auth.uid()
++        and m.status = 'active'
++        and m.role in ('owner', 'manager')
++    )
++  );
++
++create index customer_reviews_org_idx on public.customer_reviews (org_id, created_at desc);
++create index customer_reviews_status_idx on public.customer_reviews (status);
++
++create trigger t_customer_reviews_upd
++  before update on public.customer_reviews
++  for each row execute function public.set_updated_at();
