@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { guestDb } from "@/lib/guest-internal";
 import { z } from "zod";
 
 export type PropertyRow = {
@@ -14,6 +15,10 @@ export type PropertyRow = {
   notes: string | null;
   turnoverMinutes: number;
   active: boolean;
+  /** Stars below which guest feedback is treated as a complaint. Null = use the workspace default. */
+  complaintStarThreshold: number | null;
+  /** Short code behind this property's own review QR (/r/p/<code>). */
+  reviewCode: string;
 };
 
 const propertyInput = z.object({
@@ -29,17 +34,21 @@ const propertyInput = z.object({
   notes: z.string().max(2000).nullable(),
   turnoverMinutes: z.number().int().min(15).max(1440),
   active: z.boolean(),
+  complaintStarThreshold: z.number().int().min(1).max(5).nullable().default(null),
 });
 
 export const listProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<PropertyRow[]> => {
-    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
+    const { requireMembership, STAFF_ROLES } = await import("./ops.server");
     const me = await requireMembership(context.userId, data.orgId);
     const isStaff = STAFF_ROLES.includes(me.role);
 
-    const { data: rows, error } = await supabaseAdmin
+    // guestDb() is the same service-role client, typed against the columns
+    // added by the guest/review migrations.
+    const db = await guestDb();
+    const { data: rows, error } = await db
       .from("properties")
       .select("*")
       .eq("org_id", data.orgId)
@@ -62,6 +71,8 @@ export const listProperties = createServerFn({ method: "POST" })
         notes: p.notes,
         turnoverMinutes: p.turnover_minutes,
         active: p.active,
+        complaintStarThreshold: p.complaint_star_threshold,
+        reviewCode: p.review_code,
       })),
     );
   });
@@ -70,9 +81,10 @@ export const saveProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => propertyInput.parse(d))
   .handler(async ({ data, context }) => {
-    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
+    const { requireMembership, ADMIN_ROLES, logAudit } = await import("./ops.server");
     await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
     const { encryptField } = await import("./crypto.server");
+    const db = await guestDb();
 
     const row = {
       org_id: data.orgId,
@@ -86,10 +98,11 @@ export const saveProperty = createServerFn({ method: "POST" })
       notes: data.notes,
       turnover_minutes: data.turnoverMinutes,
       active: data.active,
+      complaint_star_threshold: data.complaintStarThreshold,
     };
 
     if (data.id) {
-      const { error } = await supabaseAdmin
+      const { error } = await db
         .from("properties")
         .update(row)
         .eq("id", data.id)
@@ -105,7 +118,7 @@ export const saveProperty = createServerFn({ method: "POST" })
       return { id: data.id };
     }
 
-    const { data: created, error } = await supabaseAdmin.from("properties").insert(row).select("id").single();
+    const { data: created, error } = await db.from("properties").insert(row).select("id").single();
     if (error || !created) throw new Error("Could not create the property.");
     await logAudit({
       orgId: data.orgId,
@@ -120,9 +133,12 @@ export const saveProperty = createServerFn({ method: "POST" })
 
 export const deleteProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid(), id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ orgId: z.string().uuid(), id: z.string().uuid() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
-    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
+    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } =
+      await import("./ops.server");
     await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
     // Soft delete: history (tasks, photos, audit) must stay intact.
     const { error } = await supabaseAdmin

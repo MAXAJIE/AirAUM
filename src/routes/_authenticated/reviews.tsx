@@ -2,11 +2,21 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, Copy, Link2, MessageSquareQuote, Star, TrendingUp } from "lucide-react";
+import {
+  Archive,
+  Copy,
+  MessageSquareQuote,
+  Printer,
+  QrCode as QrIcon,
+  Star,
+  TrendingUp,
+} from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Stars } from "@/components/stars";
 import { useWorkspace, isAdmin } from "@/hooks/useWorkspace";
-import { listReviews, updateReview } from "@/lib/reviews.functions";
+import { listPropertyReviewLinks, listReviews, updateReview } from "@/lib/reviews.functions";
+import { QrCode } from "@/components/qr-code";
+import { printQrPoster } from "@/lib/qr-poster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +47,12 @@ function ReviewsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
+  const links = useQuery({
+    queryKey: ["property-review-links", orgId],
+    queryFn: () => listPropertyReviewLinks({ data: { orgId: orgId! } }),
+    enabled: !!orgId,
+  });
+
   const reviews = useQuery({
     queryKey: ["reviews", orgId],
     queryFn: () => listReviews({ data: { orgId: orgId! } }),
@@ -59,10 +75,8 @@ function ReviewsPage() {
   const stats = reviews.data?.stats;
   const list = (reviews.data?.reviews ?? []).filter((r) => filter === "all" || r.status === filter);
 
-  const shareLink =
-    typeof window !== "undefined" && workspace
-      ? `${window.location.origin}/r/${workspace.slug}`
-      : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const activeLinks = (links.data ?? []).filter((p) => p.active);
 
   return (
     <AppShell title="Reviews">
@@ -70,26 +84,71 @@ function ReviewsPage() {
         <Card className="glow-ring overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Link2 className="size-4" /> Your review link
+              <QrIcon className="size-4" /> A review QR per property
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-3">
-            <code className="rounded-lg border border-border bg-background/70 px-3 py-2 font-mono text-sm">
-              {shareLink || "…"}
-            </code>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void navigator.clipboard.writeText(shareLink);
-                toast.success("Link copied. Send it to your guests.");
-              }}
-            >
-              <Copy className="mr-2 size-4" /> Copy
-            </Button>
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Share it after checkout — guests rate the stay without signing in.
+              Print each unit&apos;s code and leave it in the flat. Every review that arrives is
+              tied to that property, so you can see exactly which one keeps slipping.
             </p>
+
+            {links.isLoading && <Skeleton className="h-40 w-full" />}
+
+            {!links.isLoading && activeLinks.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Add a property first — each one gets its own code automatically.
+              </p>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {activeLinks.map((p) => {
+                const url = `${origin}/r/p/${p.reviewCode}`;
+                const subtitle = [p.unitLabel, p.city].filter(Boolean).join(" · ");
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-4 rounded-xl border border-border p-4"
+                  >
+                    <QrCode value={url} size={120} alt={`Review QR for ${p.name}`} />
+                    <div className="min-w-0 space-y-2">
+                      <p className="truncate font-medium">{p.name}</p>
+                      {subtitle && (
+                        <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+                      )}
+                      <code className="block truncate rounded-md bg-muted px-2 py-1 font-mono text-xs">
+                        /r/p/{p.reviewCode}
+                      </code>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(url);
+                            toast.success("Link copied.");
+                          }}
+                        >
+                          <Copy className="mr-2 size-4" /> Copy
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            void printQrPoster({
+                              title: `How was ${p.name}?`,
+                              subtitle: "Scan to rate your stay — no account needed.",
+                              url,
+                            })
+                          }
+                        >
+                          <Printer className="mr-2 size-4" /> Print
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
@@ -113,6 +172,32 @@ function ReviewsPage() {
             hint="2 stars or less"
           />
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Rating by property</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {reviews.isLoading && <Skeleton className="h-24 w-full" />}
+            {!reviews.isLoading && (reviews.data?.byProperty ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No reviews yet. The weakest property shows up at the top once they arrive.
+              </p>
+            )}
+            {(reviews.data?.byProperty ?? []).map((p) => (
+              <div
+                key={p.propertyId ?? "unassigned"}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-4 py-3"
+              >
+                <span className="min-w-0 flex-1 truncate font-medium">{p.propertyName}</span>
+                <Stars value={Math.round(p.average)} />
+                <span className="text-sm font-medium">{p.average.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">{p.total} reviews</span>
+                {p.detractors > 0 && <Badge variant="destructive">{p.detractors} unhappy</Badge>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
           <TabsList>

@@ -4,7 +4,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { useWorkspace, isAdmin } from "@/hooks/useWorkspace";
-import { listProperties, saveProperty, deleteProperty, type PropertyRow } from "@/lib/properties.functions";
+import {
+  listProperties,
+  saveProperty,
+  deleteProperty,
+  type PropertyRow,
+} from "@/lib/properties.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +23,10 @@ export const Route = createFileRoute("/_authenticated/properties")({
   head: () => ({
     meta: [
       { title: "Properties | AirClean" },
-      { name: "description", content: "Your units, turnaround times, access codes and cleaning notes." },
+      {
+        name: "description",
+        content: "Your units, turnaround times, access codes and cleaning notes.",
+      },
       { property: "og:title", content: "Properties | AirClean" },
       { property: "og:description", content: "Units, turnaround times and access details." },
       { property: "og:type", content: "website" },
@@ -40,6 +48,8 @@ const EMPTY: PropertyRow = {
   notes: null,
   turnoverMinutes: 120,
   active: true,
+  complaintStarThreshold: null,
+  reviewCode: "",
 };
 
 function PropertiesPage() {
@@ -70,6 +80,7 @@ function PropertiesPage() {
           notes: p.notes,
           turnoverMinutes: p.turnoverMinutes,
           active: p.active,
+          complaintStarThreshold: p.complaintStarThreshold,
         },
       }),
     onSuccess: () => {
@@ -95,9 +106,7 @@ function PropertiesPage() {
   return (
     <AppShell title="Properties">
       <div className="space-y-4">
-        {admin && (
-          <Button onClick={() => setEditing({ ...EMPTY })}>Add property</Button>
-        )}
+        {admin && <Button onClick={() => setEditing({ ...EMPTY })}>Add property</Button>}
 
         {isLoading && <Skeleton className="h-40 w-full" />}
 
@@ -121,8 +130,8 @@ function PropertiesPage() {
                   {!p.active && <Badge variant="secondary">Archived</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {p.city ?? "No city"} · {p.bedrooms} bed · {p.bathrooms} bath · {p.turnoverMinutes} min
-                  turnaround
+                  {p.city ?? "No city"} · {p.bedrooms} bed · {p.bathrooms} bath ·{" "}
+                  {p.turnoverMinutes} min turnaround
                 </p>
                 {p.address && <p className="text-sm text-muted-foreground">{p.address}</p>}
                 {p.accessCode && (
@@ -154,7 +163,11 @@ function PropertiesPage() {
               <div className="grid gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="p-name">Name</Label>
-                  <Input id="p-name" value={editing.name} onChange={(e) => set("name", e.target.value)} />
+                  <Input
+                    id="p-name"
+                    value={editing.name}
+                    onChange={(e) => set("name", e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -222,6 +235,27 @@ function PropertiesPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="p-threshold">Complaint threshold (stars)</Label>
+                  <Input
+                    id="p-threshold"
+                    type="number"
+                    min={1}
+                    max={5}
+                    placeholder="Workspace default"
+                    value={editing.complaintStarThreshold ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "complaintStarThreshold",
+                        e.target.value ? Math.min(5, Math.max(1, Number(e.target.value))) : null,
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Guest feedback below this many stars is raised as a complaint. Leave empty to
+                    use the workspace default.
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="p-notes">Cleaning notes</Label>
                   <Textarea
                     id="p-notes"
@@ -229,7 +263,10 @@ function PropertiesPage() {
                     onChange={(e) => set("notes", e.target.value || null)}
                   />
                 </div>
-                <Button onClick={() => save.mutate(editing)} disabled={save.isPending || !editing.name}>
+                <Button
+                  onClick={() => save.mutate(editing)}
+                  disabled={save.isPending || !editing.name}
+                >
                   Save property
                 </Button>
               </div>

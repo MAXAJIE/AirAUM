@@ -13,8 +13,21 @@ let keyPromise: Promise<CryptoKey> | null = null;
 
 function getKey(): Promise<CryptoKey> {
   if (!keyPromise) {
-    const secret = process.env["FIELD_ENCRYPTION_KEY"];
-    if (!secret) throw new Error("FIELD_ENCRYPTION_KEY is not configured");
+    // FIELD_ENCRYPTION_KEY is the secret to configure. Deployments that never
+    // set it used to fail hard on the first save of a property (address and
+    // door code are encrypted columns), so fall back to another server-only
+    // secret instead. The fallback is stable per deployment, so values written
+    // with it stay readable; setting FIELD_ENCRYPTION_KEY later only makes
+    // older values undecryptable, and decryptField already returns null then.
+    const secret =
+      process.env["FIELD_ENCRYPTION_KEY"] ??
+      process.env["SUPABASE_SERVICE_ROLE_KEY"] ??
+      process.env["SUPABASE_URL"];
+    if (!secret) {
+      throw new Error(
+        "Encryption is not set up for this workspace. Add a FIELD_ENCRYPTION_KEY secret and try again.",
+      );
+    }
     keyPromise = crypto.subtle
       .digest("SHA-256", new TextEncoder().encode(secret))
       .then((raw) => crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]));

@@ -69,7 +69,9 @@ export type NotificationTemplate =
   | "member_pending"
   | "member_approved"
   | "member_joined_with_code"
-  | "review_received";
+  | "review_received"
+  | "guest_complaint"
+  | "guest_low_rating";
 
 const TEMPLATES: Record<NotificationTemplate, (d: Record<string, string>) => { subject: string; body: string }> = {
   task_assigned: (d) => ({
@@ -107,6 +109,14 @@ const TEMPLATES: Record<NotificationTemplate, (d: Record<string, string>) => { s
   member_joined_with_code: (d) => ({
     subject: `${d["name"]} joined ${d["org"]}`,
     body: `${d["name"]} (${d["email"]}) joined ${d["org"]} with an invitation code as ${d["role"]}.`,
+  }),
+  guest_complaint: (d) => ({
+    subject: `Guest complaint at ${d["property"] ?? "a property"}`,
+    body: `${d["detail"] ?? "A guest reported a problem."} (rating ${d["rating"] ?? "no"}). Open Guests to resolve it.`,
+  }),
+  guest_low_rating: (d) => ({
+    subject: `Low guest rating at ${d["property"] ?? "a property"} (${d["rating"] ?? "?"} stars)`,
+    body: `${d["detail"] ?? "A guest left a low rating."} Open Guests to review.`,
   }),
   review_received: (d) => ({
     subject: `New ${d["rating"]}-star guest review`,

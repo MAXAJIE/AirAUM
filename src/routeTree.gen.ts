@@ -14,15 +14,18 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
 import { Route as AuthenticatedMaintenanceRouteImport } from './routes/_authenticated/maintenance'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedPropertiesRouteImport } from './routes/_authenticated/properties'
 import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
+import { Route as GCodeRouteImport } from './routes/g.$code'
 import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks.index'
 import { Route as AuthenticatedTasksTaskIdRouteImport } from './routes/_authenticated/tasks.$taskId'
+import { Route as RPCodeRouteImport } from './routes/r.p.$code'
 import { Route as ApiPublicCronNightlyRouteImport } from './routes/api/public/cron/nightly'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +50,11 @@ const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGuestsRoute = AuthenticatedGuestsRouteImport.update({
+  id: '/guests',
+  path: '/guests',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMaintenanceRoute =
@@ -80,6 +88,11 @@ const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const GCodeRoute = GCodeRouteImport.update({
+  id: '/g/$code',
+  path: '/g/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RSlugRoute = RSlugRouteImport.update({
   id: '/r/$slug',
   path: '/r/$slug',
@@ -96,6 +109,11 @@ const AuthenticatedTasksTaskIdRoute =
     path: '/tasks/$taskId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const RPCodeRoute = RPCodeRouteImport.update({
+  id: '/r/p/$code',
+  path: '/r/p/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronNightlyRoute = ApiPublicCronNightlyRouteImport.update({
   id: '/api/public/cron/nightly',
   path: '/api/public/cron/nightly',
@@ -107,14 +125,17 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/bookings': typeof AuthenticatedBookingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/guests': typeof AuthenticatedGuestsRoute
   '/maintenance': typeof AuthenticatedMaintenanceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/properties': typeof AuthenticatedPropertiesRoute
   '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/g/$code': typeof GCodeRoute
   '/r/$slug': typeof RSlugRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+  '/r/p/$code': typeof RPCodeRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
 }
@@ -123,14 +144,17 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/bookings': typeof AuthenticatedBookingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/guests': typeof AuthenticatedGuestsRoute
   '/maintenance': typeof AuthenticatedMaintenanceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/properties': typeof AuthenticatedPropertiesRoute
   '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/g/$code': typeof GCodeRoute
   '/r/$slug': typeof RSlugRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+  '/r/p/$code': typeof RPCodeRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
 }
@@ -141,14 +165,17 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/guests': typeof AuthenticatedGuestsRoute
   '/_authenticated/maintenance': typeof AuthenticatedMaintenanceRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/properties': typeof AuthenticatedPropertiesRoute
   '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/g/$code': typeof GCodeRoute
   '/r/$slug': typeof RSlugRoute
   '/_authenticated/tasks/$taskId': typeof AuthenticatedTasksTaskIdRoute
+  '/r/p/$code': typeof RPCodeRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/api/public/cron/nightly': typeof ApiPublicCronNightlyRoute
 }
@@ -159,14 +186,17 @@ export interface FileRouteTypes {
     | '/auth'
     | '/bookings'
     | '/dashboard'
+    | '/guests'
     | '/maintenance'
     | '/onboarding'
     | '/properties'
     | '/reviews'
     | '/settings'
     | '/team'
+    | '/g/$code'
     | '/r/$slug'
     | '/tasks/$taskId'
+    | '/r/p/$code'
     | '/tasks/'
     | '/api/public/cron/nightly'
   fileRoutesByTo: FileRoutesByTo
@@ -175,14 +205,17 @@ export interface FileRouteTypes {
     | '/auth'
     | '/bookings'
     | '/dashboard'
+    | '/guests'
     | '/maintenance'
     | '/onboarding'
     | '/properties'
     | '/reviews'
     | '/settings'
     | '/team'
+    | '/g/$code'
     | '/r/$slug'
     | '/tasks/$taskId'
+    | '/r/p/$code'
     | '/tasks'
     | '/api/public/cron/nightly'
   id:
@@ -192,14 +225,17 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/bookings'
     | '/_authenticated/dashboard'
+    | '/_authenticated/guests'
     | '/_authenticated/maintenance'
     | '/_authenticated/onboarding'
     | '/_authenticated/properties'
     | '/_authenticated/reviews'
     | '/_authenticated/settings'
     | '/_authenticated/team'
+    | '/g/$code'
     | '/r/$slug'
     | '/_authenticated/tasks/$taskId'
+    | '/r/p/$code'
     | '/_authenticated/tasks/'
     | '/api/public/cron/nightly'
   fileRoutesById: FileRoutesById
@@ -208,7 +244,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  GCodeRoute: typeof GCodeRoute
   RSlugRoute: typeof RSlugRoute
+  RPCodeRoute: typeof RPCodeRoute
   ApiPublicCronNightlyRoute: typeof ApiPublicCronNightlyRoute
 }
 
@@ -247,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/guests': {
+      id: '/_authenticated/guests'
+      path: '/guests'
+      fullPath: '/guests'
+      preLoaderRoute: typeof AuthenticatedGuestsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/maintenance': {
@@ -291,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/g/$code': {
+      id: '/g/$code'
+      path: '/g/$code'
+      fullPath: '/g/$code'
+      preLoaderRoute: typeof GCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/r/$slug': {
       id: '/r/$slug'
       path: '/r/$slug'
@@ -312,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksTaskIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/r/p/$code': {
+      id: '/r/p/$code'
+      path: '/r/p/$code'
+      fullPath: '/r/p/$code'
+      preLoaderRoute: typeof RPCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/nightly': {
       id: '/api/public/cron/nightly'
       path: '/api/public/cron/nightly'
@@ -325,6 +384,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
   AuthenticatedMaintenanceRoute: typeof AuthenticatedMaintenanceRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPropertiesRoute: typeof AuthenticatedPropertiesRoute
@@ -338,6 +398,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
   AuthenticatedMaintenanceRoute: AuthenticatedMaintenanceRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPropertiesRoute: AuthenticatedPropertiesRoute,
@@ -355,7 +416,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  GCodeRoute: GCodeRoute,
   RSlugRoute: RSlugRoute,
+  RPCodeRoute: RPCodeRoute,
   ApiPublicCronNightlyRoute: ApiPublicCronNightlyRoute,
 }
 export const routeTree = rootRouteImport

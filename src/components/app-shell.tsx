@@ -14,6 +14,7 @@ import {
   Wrench,
   Palette,
   Star,
+  UserCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
@@ -37,6 +38,7 @@ const NAV: NavItem[] = [
   { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
   { to: "/maintenance", label: "Maintenance", icon: Wrench },
   { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
+  { to: "/guests", label: "Guests", icon: UserCheck, staffOnly: true },
   { to: "/team", label: "Team", icon: Users, staffOnly: true },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
