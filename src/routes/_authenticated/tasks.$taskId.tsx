@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { taskStatusEmoji, taskStatusLabel, taskStatusTone } from "@/lib/task-display";
 
 export const Route = createFileRoute("/_authenticated/tasks/$taskId")({
   head: () => ({
@@ -135,6 +136,9 @@ function TaskDetail() {
   };
 
   const t = task.data;
+  const itemsDone = t ? t.items.filter((i) => i.done).length : 0;
+  const itemsTotal = t ? t.items.length : 0;
+  const checklistPercent = itemsTotal ? Math.round((itemsDone / itemsTotal) * 100) : 0;
 
   return (
     <AppShell title="Task">
@@ -158,7 +162,9 @@ function TaskDetail() {
               <CardContent className="space-y-2 p-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-display text-xl font-semibold">{t.title}</h2>
-                  <Badge variant="outline">{t.status.replace(/_/g, " ")}</Badge>
+                  <Badge variant={taskStatusTone(t.status)}>
+                    {taskStatusEmoji(t.status)} {taskStatusLabel(t.status)}
+                  </Badge>
                   {t.qcScore !== null && (
                     <Badge variant="secondary">Quality {Math.round(t.qcScore * 100)}%</Badge>
                   )}
@@ -198,7 +204,7 @@ function TaskDetail() {
             {suggest.data && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Who can take this</CardTitle>
+                  <CardTitle className="text-base">🤝 Who can take this</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {suggest.data.aiError && (
@@ -238,7 +244,25 @@ function TaskDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Checklist</CardTitle>
+                <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                  <span>🧽 Checklist</span>
+                  {itemsTotal > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {itemsDone}/{itemsTotal} done
+                    </span>
+                  )}
+                  {itemsTotal > 0 && checklistPercent === 100 && (
+                    <span className="animate-pop text-sm">🎉</span>
+                  )}
+                </CardTitle>
+                {itemsTotal > 0 && (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-700"
+                      style={{ width: `${checklistPercent}%` }}
+                    />
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-2">
                 {t.items.length === 0 && (
@@ -267,7 +291,9 @@ function TaskDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Photos</CardTitle>
+                <CardTitle className="text-base">
+                  📸 Photos{t.photos.length > 0 ? ` (${t.photos.length})` : ""}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {t.isAssignee && (
@@ -327,7 +353,7 @@ function TaskDetail() {
                     </div>
                   ))}
                   {t.photos.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No photos yet.</p>
+                    <p className="text-sm text-muted-foreground">No photos yet. 📷</p>
                   )}
                 </div>
               </CardContent>
@@ -336,7 +362,7 @@ function TaskDetail() {
             {t.isAssignee && ["assigned", "in_progress", "needs_review"].includes(t.status) && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Finish up</CardTitle>
+                  <CardTitle className="text-base">🏁 Finish up</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Textarea
@@ -354,7 +380,7 @@ function TaskDetail() {
             {t.canEdit && ["submitted", "needs_review"].includes(t.status) && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Review</CardTitle>
+                  <CardTitle className="text-base">🔎 Review</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Textarea

@@ -1,874 +1,833 @@
 diff --git a/src/components/app-shell.tsx b/src/components/app-shell.tsx
-index 8f5958d..60cbfa9 100644
+index 60cbfa9..b850dfb 100644
 --- a/src/components/app-shell.tsx
 +++ b/src/components/app-shell.tsx
-@@ -15,6 +15,8 @@ import {
-   Palette,
-   Star,
+@@ -17,6 +17,7 @@ import {
    UserCheck,
-+  CalendarDays,
-+  Sun,
+   CalendarDays,
+   Sun,
++  BarChart3,
  } from "lucide-react";
  import { supabase } from "@/integrations/supabase/client";
  import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
-@@ -33,7 +35,9 @@ type NavItem = { to: string; label: string; icon: typeof Gauge; staffOnly?: bool
- 
- const NAV: NavItem[] = [
-   { to: "/dashboard", label: "Overview", icon: Gauge },
-+  { to: "/my-day", label: "My day", icon: Sun },
-   { to: "/tasks", label: "Tasks", icon: ClipboardList },
-+  { to: "/schedule", label: "Schedule", icon: CalendarDays, staffOnly: true },
+@@ -41,6 +42,7 @@ const NAV: NavItem[] = [
    { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
    { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
    { to: "/maintenance", label: "Maintenance", icon: Wrench },
-@@ -71,8 +75,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
-             onClick={() => setOpen(false)}
-             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-               current
--                ? "bg-primary/10 text-primary"
--                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-+                ? "bg-primary/10 text-primary shadow-[inset_2px_0_0_0_var(--primary)]"
-+                : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted hover:text-foreground"
-             }`}
-           >
-             <Icon className="size-4" aria-hidden />
-@@ -199,7 +203,7 @@ function NotificationBell({ orgId }: { orgId: string | null }) {
++  { to: "/insights", label: "Insights", icon: BarChart3, staffOnly: true },
+   { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
+   { to: "/guests", label: "Guests", icon: UserCheck, staffOnly: true },
+   { to: "/team", label: "Team", icon: Users, staffOnly: true },
+@@ -200,6 +202,12 @@ function NotificationBell({ orgId }: { orgId: string | null }) {
+         </Button>
+       </PopoverTrigger>
+       <PopoverContent align="end" className="w-96 p-0">
++        <div className="flex items-center justify-between border-b border-border px-4 py-2">
++          <p className="text-sm font-medium">🔔 Notifications</p>
++          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
++            <Link to="/notifications">See all</Link>
++          </Button>
++        </div>
          <ScrollArea className="max-h-96">
            <div className="divide-y divide-border">
              {(data ?? []).length === 0 && (
--              <p className="p-4 text-sm text-muted-foreground">Nothing new right now.</p>
-+              <p className="p-4 text-sm text-muted-foreground">🔕 Nothing new right now.</p>
-             )}
-             {(data ?? []).map((n) => (
-               <div key={n.id} className={`p-4 ${n.read ? "" : "bg-muted/40"}`}>
-diff --git a/new/src/lib/task-display.ts b/src/lib/task-display.ts
-new file mode 100644
-index 0000000..e08ad2b
---- /dev/null
-+++ b/src/lib/task-display.ts
-@@ -0,0 +1,65 @@
-+/**
-+ * Shared, purely presentational helpers for tasks.
-+ * No data access here — labels, emoji and badge tones only.
-+ */
-+
-+export const TASK_STATUS_LABEL: Record<string, string> = {
-+  unassigned: "Unassigned",
-+  assigned: "Assigned",
-+  in_progress: "In progress",
-+  submitted: "Submitted",
-+  needs_review: "Needs review",
-+  completed: "Completed",
-+  cancelled: "Cancelled",
-+};
-+
-+export const TASK_STATUS_EMOJI: Record<string, string> = {
-+  unassigned: "🆕",
-+  assigned: "📌",
-+  in_progress: "🧹",
-+  submitted: "📤",
-+  needs_review: "🔎",
-+  completed: "✅",
-+  cancelled: "🚫",
-+};
-+
-+export function taskStatusLabel(status: string) {
-+  return TASK_STATUS_LABEL[status] ?? status;
-+}
-+
-+export function taskStatusEmoji(status: string) {
-+  return TASK_STATUS_EMOJI[status] ?? "•";
-+}
-+
-+export function taskStatusTone(status: string): "default" | "secondary" | "destructive" | "outline" {
-+  if (status === "completed") return "secondary";
-+  if (status === "needs_review") return "destructive";
-+  if (status === "in_progress" || status === "submitted") return "default";
-+  return "outline";
-+}
-+
-+/** Local-midnight key so calendar grouping never drifts across timezones. */
-+export function dayKey(value: string | Date) {
-+  const d = value instanceof Date ? value : new Date(value);
-+  if (Number.isNaN(d.getTime())) return "";
-+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-+}
-+
-+/** Monday-start week containing `from`. */
-+export function weekDays(from: Date): Date[] {
-+  const start = new Date(from);
-+  start.setHours(0, 0, 0, 0);
-+  const offset = (start.getDay() + 6) % 7;
-+  start.setDate(start.getDate() - offset);
-+  return Array.from({ length: 7 }, (_, i) => {
-+    const d = new Date(start);
-+    d.setDate(start.getDate() + i);
-+    return d;
-+  });
-+}
-+
-+export function timeLabel(value: string) {
-+  const d = new Date(value);
-+  if (Number.isNaN(d.getTime())) return "—";
-+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-+}
 diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
-index e584a95..83ce595 100644
+index 83ce595..879874c 100644
 --- a/src/routeTree.gen.ts
 +++ b/src/routeTree.gen.ts
-@@ -16,9 +16,11 @@ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticat
+@@ -15,8 +15,10 @@ import { Route as AuthRouteImport } from './routes/auth'
+ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
  import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
  import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
++import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
  import { Route as AuthenticatedMaintenanceRouteImport } from './routes/_authenticated/maintenance'
-+import { Route as AuthenticatedMyDayRouteImport } from './routes/_authenticated/my-day'
+ import { Route as AuthenticatedMyDayRouteImport } from './routes/_authenticated/my-day'
++import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
  import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
  import { Route as AuthenticatedPropertiesRouteImport } from './routes/_authenticated/properties'
  import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
-+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
- import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
- import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
- import { Route as GCodeRouteImport } from './routes/g.$code'
-@@ -63,6 +65,11 @@ const AuthenticatedMaintenanceRoute =
-     path: '/maintenance',
-     getParentRoute: () => AuthenticatedRouteRoute,
-   } as any)
-+const AuthenticatedMyDayRoute = AuthenticatedMyDayRouteImport.update({
-+  id: '/my-day',
-+  path: '/my-day',
+@@ -59,6 +61,11 @@ const AuthenticatedGuestsRoute = AuthenticatedGuestsRouteImport.update({
+   path: '/guests',
+   getParentRoute: () => AuthenticatedRouteRoute,
+ } as any)
++const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
++  id: '/insights',
++  path: '/insights',
 +  getParentRoute: () => AuthenticatedRouteRoute,
 +} as any)
+ const AuthenticatedMaintenanceRoute =
+   AuthenticatedMaintenanceRouteImport.update({
+     id: '/maintenance',
+@@ -70,6 +77,12 @@ const AuthenticatedMyDayRoute = AuthenticatedMyDayRouteImport.update({
+   path: '/my-day',
+   getParentRoute: () => AuthenticatedRouteRoute,
+ } as any)
++const AuthenticatedNotificationsRoute =
++  AuthenticatedNotificationsRouteImport.update({
++    id: '/notifications',
++    path: '/notifications',
++    getParentRoute: () => AuthenticatedRouteRoute,
++  } as any)
  const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
    id: '/onboarding',
    path: '/onboarding',
-@@ -78,6 +85,11 @@ const AuthenticatedReviewsRoute = AuthenticatedReviewsRouteImport.update({
-   path: '/reviews',
-   getParentRoute: () => AuthenticatedRouteRoute,
- } as any)
-+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
-+  id: '/schedule',
-+  path: '/schedule',
-+  getParentRoute: () => AuthenticatedRouteRoute,
-+} as any)
- const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-   id: '/settings',
-   path: '/settings',
-@@ -127,9 +139,11 @@ export interface FileRoutesByFullPath {
+@@ -138,8 +151,10 @@ export interface FileRoutesByFullPath {
+   '/bookings': typeof AuthenticatedBookingsRoute
    '/dashboard': typeof AuthenticatedDashboardRoute
    '/guests': typeof AuthenticatedGuestsRoute
++  '/insights': typeof AuthenticatedInsightsRoute
    '/maintenance': typeof AuthenticatedMaintenanceRoute
-+  '/my-day': typeof AuthenticatedMyDayRoute
+   '/my-day': typeof AuthenticatedMyDayRoute
++  '/notifications': typeof AuthenticatedNotificationsRoute
    '/onboarding': typeof AuthenticatedOnboardingRoute
    '/properties': typeof AuthenticatedPropertiesRoute
    '/reviews': typeof AuthenticatedReviewsRoute
-+  '/schedule': typeof AuthenticatedScheduleRoute
-   '/settings': typeof AuthenticatedSettingsRoute
-   '/team': typeof AuthenticatedTeamRoute
-   '/g/$code': typeof GCodeRoute
-@@ -146,9 +160,11 @@ export interface FileRoutesByTo {
+@@ -159,8 +174,10 @@ export interface FileRoutesByTo {
+   '/bookings': typeof AuthenticatedBookingsRoute
    '/dashboard': typeof AuthenticatedDashboardRoute
    '/guests': typeof AuthenticatedGuestsRoute
++  '/insights': typeof AuthenticatedInsightsRoute
    '/maintenance': typeof AuthenticatedMaintenanceRoute
-+  '/my-day': typeof AuthenticatedMyDayRoute
+   '/my-day': typeof AuthenticatedMyDayRoute
++  '/notifications': typeof AuthenticatedNotificationsRoute
    '/onboarding': typeof AuthenticatedOnboardingRoute
    '/properties': typeof AuthenticatedPropertiesRoute
    '/reviews': typeof AuthenticatedReviewsRoute
-+  '/schedule': typeof AuthenticatedScheduleRoute
-   '/settings': typeof AuthenticatedSettingsRoute
-   '/team': typeof AuthenticatedTeamRoute
-   '/g/$code': typeof GCodeRoute
-@@ -167,9 +183,11 @@ export interface FileRoutesById {
+@@ -182,8 +199,10 @@ export interface FileRoutesById {
+   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
    '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
    '/_authenticated/guests': typeof AuthenticatedGuestsRoute
++  '/_authenticated/insights': typeof AuthenticatedInsightsRoute
    '/_authenticated/maintenance': typeof AuthenticatedMaintenanceRoute
-+  '/_authenticated/my-day': typeof AuthenticatedMyDayRoute
+   '/_authenticated/my-day': typeof AuthenticatedMyDayRoute
++  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
    '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
    '/_authenticated/properties': typeof AuthenticatedPropertiesRoute
    '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
-+  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
-   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-   '/_authenticated/team': typeof AuthenticatedTeamRoute
-   '/g/$code': typeof GCodeRoute
-@@ -188,9 +206,11 @@ export interface FileRouteTypes {
+@@ -205,8 +224,10 @@ export interface FileRouteTypes {
+     | '/bookings'
      | '/dashboard'
      | '/guests'
++    | '/insights'
      | '/maintenance'
-+    | '/my-day'
+     | '/my-day'
++    | '/notifications'
      | '/onboarding'
      | '/properties'
      | '/reviews'
-+    | '/schedule'
-     | '/settings'
-     | '/team'
-     | '/g/$code'
-@@ -207,9 +227,11 @@ export interface FileRouteTypes {
+@@ -226,8 +247,10 @@ export interface FileRouteTypes {
+     | '/bookings'
      | '/dashboard'
      | '/guests'
++    | '/insights'
      | '/maintenance'
-+    | '/my-day'
+     | '/my-day'
++    | '/notifications'
      | '/onboarding'
      | '/properties'
      | '/reviews'
-+    | '/schedule'
-     | '/settings'
-     | '/team'
-     | '/g/$code'
-@@ -227,9 +249,11 @@ export interface FileRouteTypes {
+@@ -248,8 +271,10 @@ export interface FileRouteTypes {
+     | '/_authenticated/bookings'
      | '/_authenticated/dashboard'
      | '/_authenticated/guests'
++    | '/_authenticated/insights'
      | '/_authenticated/maintenance'
-+    | '/_authenticated/my-day'
+     | '/_authenticated/my-day'
++    | '/_authenticated/notifications'
      | '/_authenticated/onboarding'
      | '/_authenticated/properties'
      | '/_authenticated/reviews'
-+    | '/_authenticated/schedule'
-     | '/_authenticated/settings'
-     | '/_authenticated/team'
-     | '/g/$code'
-@@ -301,6 +325,13 @@ declare module '@tanstack/react-router' {
-       preLoaderRoute: typeof AuthenticatedMaintenanceRouteImport
+@@ -318,6 +343,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof AuthenticatedGuestsRouteImport
        parentRoute: typeof AuthenticatedRouteRoute
      }
-+    '/_authenticated/my-day': {
-+      id: '/_authenticated/my-day'
-+      path: '/my-day'
-+      fullPath: '/my-day'
-+      preLoaderRoute: typeof AuthenticatedMyDayRouteImport
++    '/_authenticated/insights': {
++      id: '/_authenticated/insights'
++      path: '/insights'
++      fullPath: '/insights'
++      preLoaderRoute: typeof AuthenticatedInsightsRouteImport
++      parentRoute: typeof AuthenticatedRouteRoute
++    }
+     '/_authenticated/maintenance': {
+       id: '/_authenticated/maintenance'
+       path: '/maintenance'
+@@ -332,6 +364,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof AuthenticatedMyDayRouteImport
+       parentRoute: typeof AuthenticatedRouteRoute
+     }
++    '/_authenticated/notifications': {
++      id: '/_authenticated/notifications'
++      path: '/notifications'
++      fullPath: '/notifications'
++      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
 +      parentRoute: typeof AuthenticatedRouteRoute
 +    }
      '/_authenticated/onboarding': {
        id: '/_authenticated/onboarding'
        path: '/onboarding'
-@@ -322,6 +353,13 @@ declare module '@tanstack/react-router' {
-       preLoaderRoute: typeof AuthenticatedReviewsRouteImport
-       parentRoute: typeof AuthenticatedRouteRoute
-     }
-+    '/_authenticated/schedule': {
-+      id: '/_authenticated/schedule'
-+      path: '/schedule'
-+      fullPath: '/schedule'
-+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
-+      parentRoute: typeof AuthenticatedRouteRoute
-+    }
-     '/_authenticated/settings': {
-       id: '/_authenticated/settings'
-       path: '/settings'
-@@ -386,9 +424,11 @@ interface AuthenticatedRouteRouteChildren {
+@@ -423,8 +462,10 @@ interface AuthenticatedRouteRouteChildren {
+   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
    AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
    AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
++  AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
    AuthenticatedMaintenanceRoute: typeof AuthenticatedMaintenanceRoute
-+  AuthenticatedMyDayRoute: typeof AuthenticatedMyDayRoute
+   AuthenticatedMyDayRoute: typeof AuthenticatedMyDayRoute
++  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
    AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
    AuthenticatedPropertiesRoute: typeof AuthenticatedPropertiesRoute
    AuthenticatedReviewsRoute: typeof AuthenticatedReviewsRoute
-+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
-   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
-   AuthenticatedTasksTaskIdRoute: typeof AuthenticatedTasksTaskIdRoute
-@@ -400,9 +440,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+@@ -439,8 +480,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
    AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
    AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
++  AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
    AuthenticatedMaintenanceRoute: AuthenticatedMaintenanceRoute,
-+  AuthenticatedMyDayRoute: AuthenticatedMyDayRoute,
+   AuthenticatedMyDayRoute: AuthenticatedMyDayRoute,
++  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
    AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
    AuthenticatedPropertiesRoute: AuthenticatedPropertiesRoute,
    AuthenticatedReviewsRoute: AuthenticatedReviewsRoute,
-+  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
-   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
-   AuthenticatedTasksTaskIdRoute: AuthenticatedTasksTaskIdRoute,
-diff --git a/src/routes/_authenticated/dashboard.tsx b/src/routes/_authenticated/dashboard.tsx
-index 6e942d9..97454ad 100644
---- a/src/routes/_authenticated/dashboard.tsx
-+++ b/src/routes/_authenticated/dashboard.tsx
-@@ -31,12 +31,12 @@ function DashboardPage() {
+diff --git a/src/routes/_authenticated/tasks.$taskId.tsx b/src/routes/_authenticated/tasks.$taskId.tsx
+index 6694899..a7c3656 100644
+--- a/src/routes/_authenticated/tasks.$taskId.tsx
++++ b/src/routes/_authenticated/tasks.$taskId.tsx
+@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
+ import { Textarea } from "@/components/ui/textarea";
+ import { Checkbox } from "@/components/ui/checkbox";
+ import { Skeleton } from "@/components/ui/skeleton";
++import { taskStatusEmoji, taskStatusLabel, taskStatusTone } from "@/lib/task-display";
  
-   const stats = data
-     ? [
--        { label: "Due today", value: data.dueToday },
--        { label: "Overdue", value: data.overdue },
--        { label: "Unassigned", value: data.unassigned },
--        { label: "In progress", value: data.inProgress },
--        { label: "Waiting on review", value: data.needsReview },
--        { label: "Open maintenance", value: data.openMaintenance },
-+        { label: "Due today", value: data.dueToday, emoji: "📆" },
-+        { label: "Overdue", value: data.overdue, emoji: "⏰" },
-+        { label: "Unassigned", value: data.unassigned, emoji: "🕳️" },
-+        { label: "In progress", value: data.inProgress, emoji: "🧹" },
-+        { label: "Waiting on review", value: data.needsReview, emoji: "🔎" },
-+        { label: "Open maintenance", value: data.openMaintenance, emoji: "🔧" },
-       ]
-     : [];
+ export const Route = createFileRoute("/_authenticated/tasks/$taskId")({
+   head: () => ({
+@@ -135,6 +136,9 @@ function TaskDetail() {
+   };
  
-@@ -55,10 +55,16 @@ function DashboardPage() {
-         {data && (
-           <>
-             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
--              {stats.map((s) => (
--                <Card key={s.label}>
-+              {stats.map((s, i) => (
-+                <Card
-+                  key={s.label}
-+                  className="animate-rise hover-lift"
-+                  style={{ animationDelay: `${i * 50}ms` }}
-+                >
-                   <CardContent className="p-5">
--                    <p className="text-sm text-muted-foreground">{s.label}</p>
-+                    <p className="text-sm text-muted-foreground">
-+                      <span aria-hidden>{s.emoji}</span> {s.label}
-+                    </p>
-                     <p className="mt-1 font-display text-3xl font-semibold">{s.value}</p>
-                   </CardContent>
-                 </Card>
-@@ -68,7 +74,7 @@ function DashboardPage() {
-             <div className="grid gap-4 lg:grid-cols-3">
+   const t = task.data;
++  const itemsDone = t ? t.items.filter((i) => i.done).length : 0;
++  const itemsTotal = t ? t.items.length : 0;
++  const checklistPercent = itemsTotal ? Math.round((itemsDone / itemsTotal) * 100) : 0;
+ 
+   return (
+     <AppShell title="Task">
+@@ -158,7 +162,9 @@ function TaskDetail() {
+               <CardContent className="space-y-2 p-6">
+                 <div className="flex flex-wrap items-center gap-2">
+                   <h2 className="font-display text-xl font-semibold">{t.title}</h2>
+-                  <Badge variant="outline">{t.status.replace(/_/g, " ")}</Badge>
++                  <Badge variant={taskStatusTone(t.status)}>
++                    {taskStatusEmoji(t.status)} {taskStatusLabel(t.status)}
++                  </Badge>
+                   {t.qcScore !== null && (
+                     <Badge variant="secondary">Quality {Math.round(t.qcScore * 100)}%</Badge>
+                   )}
+@@ -198,7 +204,7 @@ function TaskDetail() {
+             {suggest.data && (
                <Card>
                  <CardHeader>
--                  <CardTitle className="text-base">Quality</CardTitle>
-+                  <CardTitle className="text-base">✨ Quality</CardTitle>
+-                  <CardTitle className="text-base">Who can take this</CardTitle>
++                  <CardTitle className="text-base">🤝 Who can take this</CardTitle>
                  </CardHeader>
-                 <CardContent className="space-y-1">
-                   <p className="font-display text-3xl font-semibold">
-@@ -83,7 +89,7 @@ function DashboardPage() {
-               {data.staff && (
-                 <Card>
-                   <CardHeader>
--                    <CardTitle className="text-base">Team & properties</CardTitle>
-+                    <CardTitle className="text-base">👥 Team & properties</CardTitle>
-                   </CardHeader>
-                   <CardContent className="space-y-2 text-sm">
-                     <p>{data.properties} active properties</p>
-@@ -101,12 +107,20 @@ function DashboardPage() {
+                 <CardContent className="space-y-3">
+                   {suggest.data.aiError && (
+@@ -238,7 +244,25 @@ function TaskDetail() {
  
-               <Card>
-                 <CardHeader>
--                  <CardTitle className="text-base">Jump to</CardTitle>
-+                  <CardTitle className="text-base">🚀 Jump to</CardTitle>
-                 </CardHeader>
-                 <CardContent className="flex flex-wrap gap-2">
-+                  <Button asChild size="sm" variant="outline">
-+                    <Link to="/my-day">My day</Link>
-+                  </Button>
-                   <Button asChild size="sm" variant="outline">
-                     <Link to="/tasks">Tasks</Link>
-                   </Button>
-+                  {data.staff && (
-+                    <Button asChild size="sm" variant="outline">
-+                      <Link to="/schedule">Schedule</Link>
-+                    </Button>
+             <Card>
+               <CardHeader>
+-                <CardTitle className="text-base">Checklist</CardTitle>
++                <CardTitle className="flex flex-wrap items-center gap-2 text-base">
++                  <span>🧽 Checklist</span>
++                  {itemsTotal > 0 && (
++                    <span className="text-sm font-normal text-muted-foreground">
++                      {itemsDone}/{itemsTotal} done
++                    </span>
 +                  )}
-                   <Button asChild size="sm" variant="outline">
-                     <Link to="/maintenance">Maintenance</Link>
-                   </Button>
-@@ -122,7 +136,7 @@ function DashboardPage() {
-             {data.staff && data.activity.length > 0 && (
++                  {itemsTotal > 0 && checklistPercent === 100 && (
++                    <span className="animate-pop text-sm">🎉</span>
++                  )}
++                </CardTitle>
++                {itemsTotal > 0 && (
++                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
++                    <div
++                      className="h-full rounded-full bg-primary transition-all duration-700"
++                      style={{ width: `${checklistPercent}%` }}
++                    />
++                  </div>
++                )}
+               </CardHeader>
+               <CardContent className="space-y-2">
+                 {t.items.length === 0 && (
+@@ -267,7 +291,9 @@ function TaskDetail() {
+ 
+             <Card>
+               <CardHeader>
+-                <CardTitle className="text-base">Photos</CardTitle>
++                <CardTitle className="text-base">
++                  📸 Photos{t.photos.length > 0 ? ` (${t.photos.length})` : ""}
++                </CardTitle>
+               </CardHeader>
+               <CardContent className="space-y-3">
+                 {t.isAssignee && (
+@@ -327,7 +353,7 @@ function TaskDetail() {
+                     </div>
+                   ))}
+                   {t.photos.length === 0 && (
+-                    <p className="text-sm text-muted-foreground">No photos yet.</p>
++                    <p className="text-sm text-muted-foreground">No photos yet. 📷</p>
+                   )}
+                 </div>
+               </CardContent>
+@@ -336,7 +362,7 @@ function TaskDetail() {
+             {t.isAssignee && ["assigned", "in_progress", "needs_review"].includes(t.status) && (
                <Card>
                  <CardHeader>
--                  <CardTitle className="text-base">Recent activity</CardTitle>
-+                  <CardTitle className="text-base">📜 Recent activity</CardTitle>
+-                  <CardTitle className="text-base">Finish up</CardTitle>
++                  <CardTitle className="text-base">🏁 Finish up</CardTitle>
                  </CardHeader>
-                 <CardContent className="divide-y divide-border p-0">
-                   {data.activity.map((a) => (
-diff --git a/new/src/routes/_authenticated/my-day.tsx b/src/routes/_authenticated/my-day.tsx
+                 <CardContent className="space-y-3">
+                   <Textarea
+@@ -354,7 +380,7 @@ function TaskDetail() {
+             {t.canEdit && ["submitted", "needs_review"].includes(t.status) && (
+               <Card>
+                 <CardHeader>
+-                  <CardTitle className="text-base">Review</CardTitle>
++                  <CardTitle className="text-base">🔎 Review</CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-3">
+                   <Textarea
+diff --git a/src/routes/g.$code.tsx b/src/routes/g.$code.tsx
+index d761ee6..0deb16b 100644
+--- a/src/routes/g.$code.tsx
++++ b/src/routes/g.$code.tsx
+@@ -224,7 +224,7 @@ function CheckInCard({
+     <Card>
+       <CardContent className="space-y-4 pt-6">
+         <div className="flex items-center justify-between">
+-          <h2 className="text-lg font-medium">Check in</h2>
++          <h2 className="text-lg font-medium">🔑 Check in</h2>
+           {data.checkIn.checkInAt ? <Badge variant="secondary">Done</Badge> : null}
+         </div>
+         <div className="space-y-2">
+@@ -298,7 +298,7 @@ function AmenityCard({
+     <Card>
+       <CardContent className="space-y-4 pt-6">
+         <div>
+-          <h2 className="text-lg font-medium">What is in the unit</h2>
++          <h2 className="text-lg font-medium">🧾 What is in the unit</h2>
+           <p className="text-sm text-muted-foreground">
+             Tell us how many of each item you actually found.
+           </p>
+@@ -400,7 +400,7 @@ function FeedbackCard({ sessionId, onSaved }: { sessionId: string; onSaved: () =
+     <Card>
+       <CardContent className="space-y-4 pt-6">
+         <div>
+-          <h2 className="text-lg font-medium">How is the place?</h2>
++          <h2 className="text-lg font-medium">🧼 How is the place?</h2>
+           <p className="text-sm text-muted-foreground">
+             Rate the cleanliness, or tell your host if something is wrong.
+           </p>
+@@ -489,7 +489,7 @@ function CheckoutCard({
+   return (
+     <Card>
+       <CardContent className="space-y-3 pt-6">
+-        <h2 className="text-lg font-medium">Leaving?</h2>
++        <h2 className="text-lg font-medium">👋 Leaving?</h2>
+         <p className="text-sm text-muted-foreground">
+           Let the cleaning team know the place is free.
+         </p>
+diff --git a/src/lib/insights.functions.ts b/src/lib/insights.functions.ts
 new file mode 100644
-index 0000000..54e8a46
+index 0000000..e8b626a
 --- /dev/null
-+++ b/src/routes/_authenticated/my-day.tsx
-@@ -0,0 +1,203 @@
-+import { createFileRoute, Link } from "@tanstack/react-router";
-+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-+import { useMemo } from "react";
-+import { ArrowRight, Play } from "lucide-react";
-+import { toast } from "sonner";
++++ b/src/lib/insights.functions.ts
+@@ -0,0 +1,135 @@
++import { createServerFn } from "@tanstack/react-start";
++import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
++import { z } from "zod";
++
++/** Monday-start key for a date, computed on the server in UTC to stay stable. */
++function weekStart(value: string): string {
++  const d = new Date(value);
++  if (Number.isNaN(d.getTime())) return "";
++  const day = (d.getUTCDay() + 6) % 7;
++  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day));
++  return monday.toISOString().slice(0, 10);
++}
++
++export type InsightsWeek = {
++  week: string;
++  total: number;
++  completed: number;
++  quality: number | null;
++};
++
++export type CleanerStat = {
++  userId: string;
++  name: string;
++  completed: number;
++  quality: number | null;
++};
++
++/**
++ * Read-only manager insights over the last 8 weeks. Everything is aggregated
++ * in memory from rows the caller is already allowed to see — no new tables.
++ */
++export const getInsights = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++
++    const since = new Date(Date.now() - 56 * 86400000);
++    const sinceIso = since.toISOString();
++
++    const { data: tasks } = await supabaseAdmin
++      .from("tasks")
++      .select("id, status, qc_score, due_at, assigned_to")
++      .eq("org_id", data.orgId)
++      .gte("due_at", sinceIso)
++      .limit(2000);
++
++    const rows = tasks ?? [];
++
++    // Weekly buckets, oldest first, with empty weeks kept so the chart has no gaps.
++    const buckets = new Map<string, { total: number; completed: number; scores: number[] }>();
++    for (let i = 7; i >= 0; i -= 1) {
++      const d = new Date(Date.now() - i * 7 * 86400000).toISOString();
++      buckets.set(weekStart(d), { total: 0, completed: 0, scores: [] });
++    }
++    for (const t of rows) {
++      const key = weekStart(t.due_at);
++      const bucket = buckets.get(key);
++      if (!bucket) continue;
++      bucket.total += 1;
++      if (t.status === "completed") bucket.completed += 1;
++      if (t.qc_score !== null) bucket.scores.push(Number(t.qc_score));
++    }
++
++    const weeks: InsightsWeek[] = [...buckets.entries()].map(([week, b]) => ({
++      week,
++      total: b.total,
++      completed: b.completed,
++      quality: b.scores.length
++        ? Math.round((b.scores.reduce((a, c) => a + c, 0) / b.scores.length) * 100)
++        : null,
++    }));
++
++    // Leaderboard: completed jobs per cleaner, with their average quality.
++    const perUser = new Map<string, { completed: number; scores: number[] }>();
++    for (const t of rows) {
++      if (!t.assigned_to || t.status !== "completed") continue;
++      const entry = perUser.get(t.assigned_to) ?? { completed: 0, scores: [] };
++      entry.completed += 1;
++      if (t.qc_score !== null) entry.scores.push(Number(t.qc_score));
++      perUser.set(t.assigned_to, entry);
++    }
++
++    const userIds = [...perUser.keys()];
++    const { data: profiles } = userIds.length
++      ? await supabaseAdmin.from("profiles").select("id, full_name").in("id", userIds)
++      : { data: [] };
++    const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
++
++    const cleaners: CleanerStat[] = userIds
++      .map((userId) => {
++        const entry = perUser.get(userId)!;
++        return {
++          userId,
++          name: nameById.get(userId) ?? "Team member",
++          completed: entry.completed,
++          quality: entry.scores.length
++            ? Math.round((entry.scores.reduce((a, c) => a + c, 0) / entry.scores.length) * 100)
++            : null,
++        };
++      })
++      .sort((a, b) => b.completed - a.completed)
++      .slice(0, 8);
++
++    const { data: reviews } = await supabaseAdmin
++      .from("customer_reviews")
++      .select("rating, status, created_at")
++      .eq("org_id", data.orgId)
++      .gte("created_at", sinceIso)
++      .limit(500);
++
++    const scored = (reviews ?? []).filter((r) => r.status !== "archived");
++    const guestAverage = scored.length
++      ? Math.round((scored.reduce((sum, r) => sum + Number(r.rating), 0) / scored.length) * 10) / 10
++      : null;
++
++    const completedTotal = rows.filter((t) => t.status === "completed").length;
++    const allScores = rows.filter((t) => t.qc_score !== null).map((t) => Number(t.qc_score));
++
++    return {
++      weeks,
++      cleaners,
++      totals: {
++        tasks: rows.length,
++        completed: completedTotal,
++        completionRate: rows.length ? Math.round((completedTotal / rows.length) * 100) : 0,
++        quality: allScores.length
++          ? Math.round((allScores.reduce((a, c) => a + c, 0) / allScores.length) * 100)
++          : null,
++        guestAverage,
++        guestReviews: scored.length,
++      },
++    };
++  });
+diff --git a/src/routes/_authenticated/insights.tsx b/src/routes/_authenticated/insights.tsx
+new file mode 100644
+index 0000000..a4dae3a
+--- /dev/null
++++ b/src/routes/_authenticated/insights.tsx
+@@ -0,0 +1,234 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { useQuery } from "@tanstack/react-query";
++import {
++  Bar,
++  BarChart,
++  CartesianGrid,
++  Line,
++  LineChart,
++  ResponsiveContainer,
++  Tooltip,
++  XAxis,
++  YAxis,
++} from "recharts";
 +import { AppShell } from "@/components/app-shell";
 +import { useWorkspace } from "@/hooks/useWorkspace";
-+import { listTasks, startTask, type TaskListRow } from "@/lib/tasks.functions";
-+import { dayKey, taskStatusEmoji, taskStatusLabel, taskStatusTone, timeLabel } from "@/lib/task-display";
-+import { Card, CardContent } from "@/components/ui/card";
++import { getInsights } from "@/lib/insights.functions";
++import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 +import { Badge } from "@/components/ui/badge";
-+import { Button } from "@/components/ui/button";
 +import { Skeleton } from "@/components/ui/skeleton";
 +
-+export const Route = createFileRoute("/_authenticated/my-day")({
++export const Route = createFileRoute("/_authenticated/insights")({
 +  head: () => ({
 +    meta: [
-+      { title: "My day | AirClean" },
-+      { name: "description", content: "Your jobs for today, in order, with one tap to start." },
-+      { property: "og:title", content: "My day | AirClean" },
-+      { property: "og:description", content: "A phone-friendly list of your cleaning jobs for today." },
++      { title: "Insights | AirClean" },
++      {
++        name: "description",
++        content: "Turnovers per week, cleaning quality trend and your team leaderboard.",
++      },
++      { property: "og:title", content: "Insights | AirClean" },
++      {
++        property: "og:description",
++        content: "Eight weeks of turnovers, quality and team performance in one view.",
++      },
 +      { property: "og:type", content: "website" },
 +      { name: "twitter:card", content: "summary" },
 +    ],
 +  }),
-+  component: MyDayPage,
++  component: InsightsPage,
 +});
 +
-+const DONE = ["completed", "cancelled"];
++const MEDALS = ["🥇", "🥈", "🥉"];
 +
-+function MyDayPage() {
-+  const { orgId, session } = useWorkspace();
-+  const qc = useQueryClient();
++function shortWeek(week: string) {
++  const d = new Date(`${week}T00:00:00Z`);
++  if (Number.isNaN(d.getTime())) return week;
++  return d.toLocaleDateString([], { day: "numeric", month: "short" });
++}
 +
-+  const { data, isLoading } = useQuery({
-+    queryKey: ["tasks", orgId, "mine"],
-+    queryFn: () => listTasks({ data: { orgId: orgId!, scope: "mine" } }),
++function InsightsPage() {
++  const { orgId } = useWorkspace();
++  const { data, isLoading, error } = useQuery({
++    queryKey: ["insights", orgId],
++    queryFn: () => getInsights({ data: { orgId: orgId! } }),
 +    enabled: !!orgId,
 +  });
 +
-+  const start = useMutation({
-+    mutationFn: (taskId: string) => startTask({ data: { orgId: orgId!, taskId } }),
-+    onSuccess: () => {
-+      toast.success("Job started 🧹 Good luck!");
-+      qc.invalidateQueries({ queryKey: ["tasks", orgId, "mine"] });
-+    },
-+    onError: (e: Error) => toast.error(e.message || "Could not start this job."),
-+  });
++  const chartData = (data?.weeks ?? []).map((w) => ({ ...w, label: shortWeek(w.week) }));
++  const hasQuality = chartData.some((w) => w.quality !== null);
 +
-+  const todayKey = dayKey(new Date());
-+  const rows = data ?? [];
-+
-+  const today = useMemo(
-+    () =>
-+      rows
-+        .filter((t) => dayKey(t.scheduledStart || t.dueAt) === todayKey && !DONE.includes(t.status))
-+        .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
-+    [rows, todayKey],
-+  );
-+
-+  const later = useMemo(
-+    () =>
-+      rows
-+        .filter(
-+          (t) =>
-+            !DONE.includes(t.status) &&
-+            dayKey(t.scheduledStart || t.dueAt) !== todayKey &&
-+            new Date(t.dueAt).getTime() > Date.now(),
-+        )
-+        .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
-+        .slice(0, 5),
-+    [rows, todayKey],
-+  );
-+
-+  const doneToday = rows.filter(
-+    (t) => t.status === "completed" && dayKey(t.scheduledStart || t.dueAt) === todayKey,
-+  ).length;
-+  const total = today.length + doneToday;
-+  const progress = total ? Math.round((doneToday / total) * 100) : 0;
-+  const firstName = (session?.fullName ?? "there").split(" ")[0];
++  const cards = data
++    ? [
++        { label: "Jobs in 8 weeks", value: String(data.totals.tasks), emoji: "🗂️" },
++        { label: "Finished", value: String(data.totals.completed), emoji: "✅" },
++        { label: "Completion rate", value: `${data.totals.completionRate}%`, emoji: "📈" },
++        {
++          label: "Photo quality",
++          value: data.totals.quality === null ? "—" : `${data.totals.quality}%`,
++          emoji: "✨",
++        },
++        {
++          label: "Guest rating",
++          value: data.totals.guestAverage === null ? "—" : `${data.totals.guestAverage}★`,
++          emoji: "💬",
++        },
++      ]
++    : [];
 +
 +  return (
-+    <AppShell title="My day">
-+      <div className="mx-auto max-w-2xl space-y-5">
-+        <Card className="animate-rise overflow-hidden">
-+          <CardContent className="space-y-3 p-5">
-+            <p className="font-display text-xl font-semibold tracking-tight">
-+              👋 Hi {firstName}
-+            </p>
-+            <p className="text-sm text-muted-foreground">
-+              {total === 0
-+                ? "No jobs on your plate today. Enjoy the quiet. ☕"
-+                : `${doneToday} of ${total} done today.`}
-+            </p>
-+            <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-+              <div
-+                className="h-full rounded-full bg-primary transition-all duration-700"
-+                style={{ width: `${progress}%` }}
-+              />
-+            </div>
-+            {progress === 100 && total > 0 && (
-+              <p className="animate-pop text-sm font-medium text-primary">🎉 All clear for today!</p>
-+            )}
-+          </CardContent>
-+        </Card>
++    <AppShell title="Insights">
++      <div className="space-y-6">
++        <div>
++          <h2 className="font-display text-2xl font-semibold tracking-tight">
++            📊 Last eight weeks
++          </h2>
++          <p className="text-sm text-muted-foreground">
++            How much work went through, how clean it came out, and who carried it.
++          </p>
++        </div>
 +
 +        {isLoading && <Skeleton className="h-40 w-full" />}
-+
-+        {!isLoading && (
-+          <section className="space-y-3">
-+            <h2 className="font-display text-lg font-semibold">🧹 Today</h2>
-+            {today.length === 0 && (
-+              <Card>
-+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
-+                  Nothing left for today. ✨
-+                </CardContent>
-+              </Card>
-+            )}
-+            {today.map((t, i) => (
-+              <JobCard
-+                key={t.id}
-+                task={t}
-+                index={i}
-+                onStart={() => start.mutate(t.id)}
-+                starting={start.isPending && start.variables === t.id}
-+              />
-+            ))}
-+          </section>
-+        )}
-+
-+        {later.length > 0 && (
-+          <section className="space-y-3">
-+            <h2 className="font-display text-lg font-semibold">📅 Coming up</h2>
-+            {later.map((t) => (
-+              <Link key={t.id} to="/tasks/$taskId" params={{ taskId: t.id }} className="block">
-+                <Card className="hover-lift">
-+                  <CardContent className="flex items-center gap-3 p-4 text-sm">
-+                    <span className="min-w-0 flex-1 truncate">
-+                      {taskStatusEmoji(t.status)} {t.propertyName}
-+                    </span>
-+                    <span className="shrink-0 text-muted-foreground">
-+                      {new Date(t.dueAt).toLocaleDateString([], { day: "numeric", month: "short" })}{" "}
-+                      {timeLabel(t.dueAt)}
-+                    </span>
-+                  </CardContent>
-+                </Card>
-+              </Link>
-+            ))}
-+          </section>
-+        )}
-+      </div>
-+    </AppShell>
-+  );
-+}
-+
-+function JobCard({
-+  task,
-+  index,
-+  onStart,
-+  starting,
-+}: {
-+  task: TaskListRow;
-+  index: number;
-+  onStart: () => void;
-+  starting: boolean;
-+}) {
-+  return (
-+    <Card
-+      className={`animate-rise hover-lift ${task.overdue ? "border-destructive/60" : ""}`}
-+      style={{ animationDelay: `${index * 60}ms` }}
-+    >
-+      <CardContent className="space-y-3 p-5">
-+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-+          <div className="min-w-0">
-+            <p className="truncate font-display text-lg font-semibold">{task.propertyName}</p>
-+            <p className="truncate text-sm text-muted-foreground">{task.title}</p>
-+          </div>
-+          <Badge variant={taskStatusTone(task.status)} className="shrink-0">
-+            {taskStatusEmoji(task.status)} {taskStatusLabel(task.status)}
-+          </Badge>
-+        </div>
-+
-+        <p className="text-sm text-muted-foreground">
-+          ⏰ Due {timeLabel(task.dueAt)}
-+          {task.overdue && <span className="ml-2 font-medium text-destructive">Overdue</span>}
-+        </p>
-+
-+        <div className="flex flex-wrap gap-2">
-+          {task.status === "assigned" && (
-+            <Button size="lg" className="flex-1" onClick={onStart} disabled={starting}>
-+              <Play className="mr-2 size-4" /> {starting ? "Starting…" : "Start job"}
-+            </Button>
-+          )}
-+          <Button asChild size="lg" variant={task.status === "assigned" ? "outline" : "default"} className="flex-1">
-+            <Link to="/tasks/$taskId" params={{ taskId: task.id }}>
-+              Open <ArrowRight className="ml-2 size-4" />
-+            </Link>
-+          </Button>
-+        </div>
-+      </CardContent>
-+    </Card>
-+  );
-+}
-diff --git a/new/src/routes/_authenticated/schedule.tsx b/src/routes/_authenticated/schedule.tsx
-new file mode 100644
-index 0000000..c52bc6a
---- /dev/null
-+++ b/src/routes/_authenticated/schedule.tsx
-@@ -0,0 +1,230 @@
-+import { createFileRoute, Link } from "@tanstack/react-router";
-+import { useQuery } from "@tanstack/react-query";
-+import { useMemo, useState } from "react";
-+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-+import { AppShell } from "@/components/app-shell";
-+import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
-+import { listTasks, type TaskListRow } from "@/lib/tasks.functions";
-+import {
-+  dayKey,
-+  taskStatusEmoji,
-+  taskStatusLabel,
-+  timeLabel,
-+  weekDays,
-+} from "@/lib/task-display";
-+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-+import { Badge } from "@/components/ui/badge";
-+import { Button } from "@/components/ui/button";
-+import { Skeleton } from "@/components/ui/skeleton";
-+
-+export const Route = createFileRoute("/_authenticated/schedule")({
-+  head: () => ({
-+    meta: [
-+      { title: "Schedule | AirClean" },
-+      {
-+        name: "description",
-+        content: "A week at a glance: every turnover by day, plus how the work is spread across your team.",
-+      },
-+      { property: "og:title", content: "Schedule | AirClean" },
-+      { property: "og:description", content: "Week calendar of turnovers and cleaner workload." },
-+      { property: "og:type", content: "website" },
-+      { name: "twitter:card", content: "summary" },
-+    ],
-+  }),
-+  component: SchedulePage,
-+});
-+
-+function SchedulePage() {
-+  const { orgId, workspace } = useWorkspace();
-+  const staff = isStaff(workspace?.role);
-+  const [weekOffset, setWeekOffset] = useState(0);
-+
-+  const { data, isLoading } = useQuery({
-+    queryKey: ["tasks", orgId, "all"],
-+    queryFn: () => listTasks({ data: { orgId: orgId!, scope: "all" } }),
-+    enabled: !!orgId && staff,
-+  });
-+
-+  const days = useMemo(() => {
-+    const base = new Date();
-+    base.setDate(base.getDate() + weekOffset * 7);
-+    return weekDays(base);
-+  }, [weekOffset]);
-+
-+  const byDay = useMemo(() => {
-+    const map = new Map<string, TaskListRow[]>();
-+    for (const d of days) map.set(dayKey(d), []);
-+    for (const t of data ?? []) {
-+      const key = dayKey(t.scheduledStart || t.dueAt);
-+      const bucket = map.get(key);
-+      if (bucket) bucket.push(t);
-+    }
-+    for (const bucket of map.values()) {
-+      bucket.sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
-+    }
-+    return map;
-+  }, [data, days]);
-+
-+  const weekTasks = useMemo(() => [...byDay.values()].flat(), [byDay]);
-+
-+  const workload = useMemo(() => {
-+    const counts = new Map<string, { name: string; total: number; done: number }>();
-+    for (const t of weekTasks) {
-+      const key = t.assignedTo ?? "unassigned";
-+      const name = t.assigneeName ?? "Unassigned";
-+      const row = counts.get(key) ?? { name, total: 0, done: 0 };
-+      row.total += 1;
-+      if (t.status === "completed") row.done += 1;
-+      counts.set(key, row);
-+    }
-+    return [...counts.values()].sort((a, b) => b.total - a.total);
-+  }, [weekTasks]);
-+
-+  const busiest = workload.reduce((m, r) => Math.max(m, r.total), 0);
-+  const todayKey = dayKey(new Date());
-+  const rangeLabel = `${days[0]!.toLocaleDateString([], { day: "numeric", month: "short" })} – ${days[6]!.toLocaleDateString([], { day: "numeric", month: "short" })}`;
-+
-+  if (!staff) {
-+    return (
-+      <AppShell title="Schedule">
-+        <Card>
-+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
-+            🔒 The team schedule is for managers and supervisors. Your own jobs live in{" "}
-+            <Link to="/my-day" className="text-primary underline-offset-4 hover:underline">
-+              My day
-+            </Link>
-+            .
-+          </CardContent>
-+        </Card>
-+      </AppShell>
-+    );
-+  }
-+
-+  return (
-+    <AppShell title="Schedule">
-+      <div className="space-y-6">
-+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
-+          <div className="min-w-0">
-+            <h2 className="truncate font-display text-2xl font-semibold tracking-tight">
-+              🗓️ {rangeLabel}
-+            </h2>
-+            <p className="text-sm text-muted-foreground">
-+              {weekTasks.length} job{weekTasks.length === 1 ? "" : "s"} in this week.
-+            </p>
-+          </div>
-+          <div className="flex shrink-0 items-center gap-2">
-+            <Button variant="outline" size="icon" aria-label="Previous week" onClick={() => setWeekOffset((w) => w - 1)}>
-+              <ChevronLeft className="size-4" />
-+            </Button>
-+            <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>
-+              <CalendarDays className="mr-2 size-4" /> This week
-+            </Button>
-+            <Button variant="outline" size="icon" aria-label="Next week" onClick={() => setWeekOffset((w) => w + 1)}>
-+              <ChevronRight className="size-4" />
-+            </Button>
-+          </div>
-+        </div>
-+
-+        {isLoading && <Skeleton className="h-64 w-full" />}
-+
-+        {!isLoading && (
-+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-+            {days.map((d, i) => {
-+              const key = dayKey(d);
-+              const items = byDay.get(key) ?? [];
-+              const isToday = key === todayKey;
-+              return (
-+                <Card
-+                  key={key}
-+                  className={`animate-rise ${isToday ? "border-primary/60 glow-ring" : ""}`}
-+                  style={{ animationDelay: `${i * 45}ms` }}
-+                >
-+                  <CardHeader className="pb-2">
-+                    <CardTitle className="flex items-baseline gap-2 text-sm">
-+                      <span>{d.toLocaleDateString([], { weekday: "short" })}</span>
-+                      <span className="text-muted-foreground">{d.getDate()}</span>
-+                      {isToday && <span className="ml-auto text-xs text-primary">today</span>}
-+                    </CardTitle>
-+                  </CardHeader>
-+                  <CardContent className="space-y-2 p-4 pt-0">
-+                    {items.length === 0 && <p className="text-xs text-muted-foreground">😴 Nothing booked</p>}
-+                    {items.map((t) => (
-+                      <Link
-+                        key={t.id}
-+                        to="/tasks/$taskId"
-+                        params={{ taskId: t.id }}
-+                        className="hover-lift block rounded-lg border border-border bg-surface p-2 text-xs"
-+                      >
-+                        <p className="font-medium">
-+                          {taskStatusEmoji(t.status)} {timeLabel(t.dueAt)}
-+                        </p>
-+                        <p className="truncate text-muted-foreground">{t.propertyName}</p>
-+                        <p className="truncate text-muted-foreground">
-+                          {t.assigneeName ?? "Unassigned"}
-+                        </p>
-+                        {t.overdue && (
-+                          <Badge variant="destructive" className="mt-1">
-+                            Overdue
-+                          </Badge>
-+                        )}
-+                      </Link>
-+                    ))}
-+                  </CardContent>
-+                </Card>
-+              );
-+            })}
-+          </div>
-+        )}
-+
-+        <Card>
-+          <CardHeader>
-+            <CardTitle className="text-base">👷 Workload this week</CardTitle>
-+          </CardHeader>
-+          <CardContent className="space-y-3">
-+            {workload.length === 0 && (
-+              <p className="text-sm text-muted-foreground">Nothing scheduled yet for this week.</p>
-+            )}
-+            {workload.map((row) => (
-+              <div key={row.name} className="space-y-1">
-+                <div className="flex items-center gap-2 text-sm">
-+                  <span className="min-w-0 truncate font-medium">
-+                    {row.name === "Unassigned" ? "🕳️ Unassigned" : `🧽 ${row.name}`}
-+                  </span>
-+                  <span className="ml-auto shrink-0 text-muted-foreground">
-+                    {row.done}/{row.total} done
-+                  </span>
-+                </div>
-+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-+                  <div
-+                    className="h-full rounded-full bg-primary transition-all duration-700"
-+                    style={{ width: `${busiest ? (row.total / busiest) * 100 : 0}%` }}
-+                  />
-+                </div>
-+              </div>
-+            ))}
-+          </CardContent>
-+        </Card>
-+
-+        {weekTasks.some((t) => t.status === "unassigned") && (
-+          <Card className="border-primary/40">
-+            <CardContent className="flex flex-wrap items-center gap-3 p-5 text-sm">
-+              <span>
-+                ⚠️ {weekTasks.filter((t) => t.status === "unassigned").length} job
-+                {weekTasks.filter((t) => t.status === "unassigned").length === 1 ? "" : "s"} still need someone.
-+              </span>
-+              <Button asChild size="sm" className="ml-auto">
-+                <Link to="/tasks">Assign now</Link>
-+              </Button>
++        {error && (
++          <Card>
++            <CardContent className="p-6 text-sm text-destructive">
++              {(error as Error).message}
 +            </CardContent>
 +          </Card>
 +        )}
 +
-+        <p className="text-xs text-muted-foreground">
-+          {["assigned", "in_progress", "needs_review", "completed"]
-+            .map((s) => `${taskStatusEmoji(s)} ${taskStatusLabel(s)}`)
-+            .join(" · ")}
-+        </p>
++        {data && (
++          <>
++            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
++              {cards.map((c, i) => (
++                <Card
++                  key={c.label}
++                  className="animate-rise hover-lift"
++                  style={{ animationDelay: `${i * 50}ms` }}
++                >
++                  <CardContent className="p-5">
++                    <p className="text-sm text-muted-foreground">
++                      <span aria-hidden>{c.emoji}</span> {c.label}
++                    </p>
++                    <p className="mt-1 font-display text-3xl font-semibold">{c.value}</p>
++                  </CardContent>
++                </Card>
++              ))}
++            </div>
++
++            <Card className="animate-rise">
++              <CardHeader>
++                <CardTitle className="text-base">🧺 Turnovers per week</CardTitle>
++              </CardHeader>
++              <CardContent>
++                <div className="h-64 w-full">
++                  <ResponsiveContainer width="100%" height="100%">
++                    <BarChart data={chartData}>
++                      <CartesianGrid
++                        strokeDasharray="3 3"
++                        stroke="var(--border)"
++                        vertical={false}
++                      />
++                      <XAxis dataKey="label" fontSize={12} stroke="var(--muted-foreground)" />
++                      <YAxis allowDecimals={false} fontSize={12} stroke="var(--muted-foreground)" />
++                      <Tooltip
++                        contentStyle={{
++                          background: "var(--card)",
++                          border: "1px solid var(--border)",
++                          borderRadius: 8,
++                          color: "var(--card-foreground)",
++                        }}
++                      />
++                      <Bar
++                        dataKey="total"
++                        name="Scheduled"
++                        radius={[6, 6, 0, 0]}
++                        fill="var(--muted-foreground)"
++                        opacity={0.35}
++                      />
++                      <Bar
++                        dataKey="completed"
++                        name="Finished"
++                        radius={[6, 6, 0, 0]}
++                        fill="var(--primary)"
++                      />
++                    </BarChart>
++                  </ResponsiveContainer>
++                </div>
++              </CardContent>
++            </Card>
++
++            <Card className="animate-rise">
++              <CardHeader>
++                <CardTitle className="text-base">✨ Quality trend</CardTitle>
++              </CardHeader>
++              <CardContent>
++                {hasQuality ? (
++                  <div className="h-56 w-full">
++                    <ResponsiveContainer width="100%" height="100%">
++                      <LineChart data={chartData}>
++                        <CartesianGrid
++                          strokeDasharray="3 3"
++                          stroke="var(--border)"
++                          vertical={false}
++                        />
++                        <XAxis dataKey="label" fontSize={12} stroke="var(--muted-foreground)" />
++                        <YAxis domain={[0, 100]} fontSize={12} stroke="var(--muted-foreground)" />
++                        <Tooltip
++                          contentStyle={{
++                            background: "var(--card)",
++                            border: "1px solid var(--border)",
++                            borderRadius: 8,
++                            color: "var(--card-foreground)",
++                          }}
++                        />
++                        <Line
++                          type="monotone"
++                          dataKey="quality"
++                          name="Quality %"
++                          stroke="var(--primary)"
++                          strokeWidth={2.5}
++                          dot={{ r: 3 }}
++                          connectNulls
++                        />
++                      </LineChart>
++                    </ResponsiveContainer>
++                  </div>
++                ) : (
++                  <p className="text-sm text-muted-foreground">
++                    No photo checks scored yet — the line appears once jobs get reviewed. 🔎
++                  </p>
++                )}
++              </CardContent>
++            </Card>
++
++            <Card className="animate-rise">
++              <CardHeader>
++                <CardTitle className="text-base">🏅 Team leaderboard</CardTitle>
++              </CardHeader>
++              <CardContent className="space-y-2">
++                {data.cleaners.length === 0 && (
++                  <p className="text-sm text-muted-foreground">
++                    Nobody has finished a job in this window yet. 🌱
++                  </p>
++                )}
++                {data.cleaners.map((c, i) => (
++                  <div
++                    key={c.userId}
++                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm hover-lift"
++                  >
++                    <span aria-hidden className="w-6 text-center">
++                      {MEDALS[i] ?? `${i + 1}.`}
++                    </span>
++                    <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
++                    <Badge variant="secondary">{c.completed} done</Badge>
++                    {c.quality !== null && <Badge variant="outline">✨ {c.quality}%</Badge>}
++                  </div>
++                ))}
++              </CardContent>
++            </Card>
++          </>
++        )}
 +      </div>
 +    </AppShell>
 +  );
 +}
-diff --git a/src/routes/_authenticated/tasks.index.tsx b/src/routes/_authenticated/tasks.index.tsx
-index 108cadd..7d7aa69 100644
---- a/src/routes/_authenticated/tasks.index.tsx
-+++ b/src/routes/_authenticated/tasks.index.tsx
-@@ -4,6 +4,7 @@ import { useState } from "react";
- import { AppShell } from "@/components/app-shell";
- import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
- import { listTasks } from "@/lib/tasks.functions";
-+import { taskStatusEmoji } from "@/lib/task-display";
- import { Card, CardContent } from "@/components/ui/card";
- import { Badge } from "@/components/ui/badge";
- import { Button } from "@/components/ui/button";
-@@ -89,9 +90,14 @@ function TasksPage() {
-             </SelectContent>
-           </Select>
-           {staff && (
--            <Button asChild className="ml-auto" size="sm">
--              <Link to="/bookings">Add work from bookings</Link>
--            </Button>
-+            <div className="ml-auto flex gap-2">
-+              <Button asChild size="sm" variant="outline">
-+                <Link to="/schedule">Week view</Link>
-+              </Button>
-+              <Button asChild size="sm">
-+                <Link to="/bookings">Add work from bookings</Link>
-+              </Button>
-+            </div>
-           )}
-         </div>
- 
-@@ -100,7 +106,7 @@ function TasksPage() {
-         {!isLoading && rows.length === 0 && (
-           <Card>
-             <CardContent className="p-8 text-center text-sm text-muted-foreground">
--              Nothing here yet. Turnover jobs appear as soon as bookings are added.
-+              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added.
-             </CardContent>
-           </Card>
-         )}
-@@ -108,7 +114,7 @@ function TasksPage() {
-         <div className="grid gap-3">
-           {rows.map((t) => (
-             <Link key={t.id} to="/tasks/$taskId" params={{ taskId: t.id }} className="block">
--              <Card className="transition-colors hover:border-primary/50">
-+              <Card className="hover-lift transition-colors hover:border-primary/50">
-                 <CardContent className="flex flex-wrap items-center gap-3 p-5">
-                   <div className="min-w-48 flex-1">
-                     <p className="font-medium">{t.title}</p>
-@@ -119,7 +125,9 @@ function TasksPage() {
-                   </div>
-                   {t.assigneeName && <Badge variant="outline">{t.assigneeName}</Badge>}
-                   {t.overdue && <Badge variant="destructive">Overdue</Badge>}
--                  <Badge variant={statusTone(t.status)}>{STATUS_LABEL[t.status] ?? t.status}</Badge>
-+                  <Badge variant={statusTone(t.status)}>
-+                    {taskStatusEmoji(t.status)} {STATUS_LABEL[t.status] ?? t.status}
-+                  </Badge>
-                   {t.qcScore !== null && <Badge variant="secondary">{Math.round(t.qcScore * 100)}%</Badge>}
-                 </CardContent>
-               </Card>
+diff --git a/src/routes/_authenticated/notifications.tsx b/src/routes/_authenticated/notifications.tsx
+new file mode 100644
+index 0000000..fc11c2e
+--- /dev/null
++++ b/src/routes/_authenticated/notifications.tsx
+@@ -0,0 +1,110 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { toast } from "sonner";
++import { AppShell } from "@/components/app-shell";
++import { useWorkspace } from "@/hooks/useWorkspace";
++import { listNotifications, markNotificationsRead } from "@/lib/notifications.functions";
++import { Card, CardContent } from "@/components/ui/card";
++import { Button } from "@/components/ui/button";
++import { Badge } from "@/components/ui/badge";
++import { Skeleton } from "@/components/ui/skeleton";
++
++export const Route = createFileRoute("/_authenticated/notifications")({
++  head: () => ({
++    meta: [
++      { title: "Notifications | AirClean" },
++      { name: "description", content: "Every reminder and alert sent to you, newest first." },
++      { property: "og:title", content: "Notifications | AirClean" },
++      { property: "og:description", content: "Reminders and alerts for your turnovers." },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary" },
++    ],
++  }),
++  component: NotificationsPage,
++});
++
++/** Small, purely cosmetic emoji per notification template. */
++function templateEmoji(template: string | null) {
++  const key = (template ?? "").toLowerCase();
++  if (key.includes("overdue")) return "⏰";
++  if (key.includes("unassigned")) return "🕳️";
++  if (key.includes("assign")) return "📌";
++  if (key.includes("review")) return "🔎";
++  if (key.includes("maintenance")) return "🔧";
++  if (key.includes("guest")) return "🧳";
++  if (key.includes("invite") || key.includes("join")) return "🤝";
++  return "🔔";
++}
++
++function NotificationsPage() {
++  const { orgId } = useWorkspace();
++  const qc = useQueryClient();
++
++  const { data, isLoading } = useQuery({
++    queryKey: ["notifications", orgId],
++    queryFn: () => listNotifications({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
++
++  const markAll = useMutation({
++    mutationFn: () => markNotificationsRead({ data: { orgId: orgId! } }),
++    onSuccess: () => {
++      toast.success("All caught up ✅");
++      qc.invalidateQueries({ queryKey: ["notifications", orgId] });
++    },
++    onError: (e: Error) => toast.error(e.message || "Could not update these."),
++  });
++
++  const rows = data ?? [];
++  const unread = rows.filter((n) => !n.read).length;
++
++  return (
++    <AppShell title="Notifications">
++      <div className="mx-auto max-w-2xl space-y-4">
++        <div className="flex flex-wrap items-center gap-3">
++          <div className="min-w-0 flex-1">
++            <h2 className="font-display text-2xl font-semibold tracking-tight">🔔 Your alerts</h2>
++            <p className="text-sm text-muted-foreground">
++              {unread > 0 ? `${unread} waiting for you.` : "Nothing unread. Nice. ☕"}
++            </p>
++          </div>
++          {unread > 0 && (
++            <Button variant="outline" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
++              {markAll.isPending ? "Marking…" : "Mark all read"}
++            </Button>
++          )}
++        </div>
++
++        {isLoading && <Skeleton className="h-40 w-full" />}
++
++        {!isLoading && rows.length === 0 && (
++          <Card>
++            <CardContent className="p-8 text-center text-sm text-muted-foreground">
++              🕊️ No notifications yet.
++            </CardContent>
++          </Card>
++        )}
++
++        {rows.map((n, i) => (
++          <Card
++            key={n.id}
++            className={`animate-rise hover-lift ${n.read ? "" : "border-primary/40"}`}
++            style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
++          >
++            <CardContent className="space-y-1 p-4">
++              <div className="flex items-start gap-2">
++                <span aria-hidden>{templateEmoji(n.template)}</span>
++                <p className="min-w-0 flex-1 text-sm font-medium">{n.subject}</p>
++                {!n.read && <Badge variant="secondary">New</Badge>}
++              </div>
++              <p className="text-sm text-muted-foreground">{n.body}</p>
++              <p className="text-xs text-muted-foreground">
++                {new Date(n.createdAt).toLocaleString()}
++              </p>
++            </CardContent>
++          </Card>
++        ))}
++      </div>
++    </AppShell>
++  );
++}

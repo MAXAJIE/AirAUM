@@ -224,7 +224,7 @@ function CheckInCard({
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Check in</h2>
+          <h2 className="text-lg font-medium">🔑 Check in</h2>
           {data.checkIn.checkInAt ? <Badge variant="secondary">Done</Badge> : null}
         </div>
         <div className="space-y-2">
@@ -298,7 +298,7 @@ function AmenityCard({
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div>
-          <h2 className="text-lg font-medium">What is in the unit</h2>
+          <h2 className="text-lg font-medium">🧾 What is in the unit</h2>
           <p className="text-sm text-muted-foreground">
             Tell us how many of each item you actually found.
           </p>
@@ -400,7 +400,7 @@ function FeedbackCard({ sessionId, onSaved }: { sessionId: string; onSaved: () =
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div>
-          <h2 className="text-lg font-medium">How is the place?</h2>
+          <h2 className="text-lg font-medium">🧼 How is the place?</h2>
           <p className="text-sm text-muted-foreground">
             Rate the cleanliness, or tell your host if something is wrong.
           </p>
@@ -489,7 +489,7 @@ function CheckoutCard({
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">
-        <h2 className="text-lg font-medium">Leaving?</h2>
+        <h2 className="text-lg font-medium">👋 Leaving?</h2>
         <p className="text-sm text-muted-foreground">
           Let the cleaning team know the place is free.
         </p>
