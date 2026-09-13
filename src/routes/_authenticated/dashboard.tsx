@@ -31,12 +31,12 @@ function DashboardPage() {
 
   const stats = data
     ? [
-        { label: "Due today", value: data.dueToday },
-        { label: "Overdue", value: data.overdue },
-        { label: "Unassigned", value: data.unassigned },
-        { label: "In progress", value: data.inProgress },
-        { label: "Waiting on review", value: data.needsReview },
-        { label: "Open maintenance", value: data.openMaintenance },
+        { label: "Due today", value: data.dueToday, emoji: "📆" },
+        { label: "Overdue", value: data.overdue, emoji: "⏰" },
+        { label: "Unassigned", value: data.unassigned, emoji: "🕳️" },
+        { label: "In progress", value: data.inProgress, emoji: "🧹" },
+        { label: "Waiting on review", value: data.needsReview, emoji: "🔎" },
+        { label: "Open maintenance", value: data.openMaintenance, emoji: "🔧" },
       ]
     : [];
 
@@ -55,10 +55,16 @@ function DashboardPage() {
         {data && (
           <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {stats.map((s) => (
-                <Card key={s.label}>
+              {stats.map((s, i) => (
+                <Card
+                  key={s.label}
+                  className="animate-rise hover-lift"
+                  style={{ animationDelay: `${i * 50}ms` }}
+                >
                   <CardContent className="p-5">
-                    <p className="text-sm text-muted-foreground">{s.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span aria-hidden>{s.emoji}</span> {s.label}
+                    </p>
                     <p className="mt-1 font-display text-3xl font-semibold">{s.value}</p>
                   </CardContent>
                 </Card>
@@ -68,7 +74,7 @@ function DashboardPage() {
             <div className="grid gap-4 lg:grid-cols-3">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Quality</CardTitle>
+                  <CardTitle className="text-base">✨ Quality</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1">
                   <p className="font-display text-3xl font-semibold">
@@ -83,7 +89,7 @@ function DashboardPage() {
               {data.staff && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Team & properties</CardTitle>
+                    <CardTitle className="text-base">👥 Team & properties</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <p>{data.properties} active properties</p>
@@ -101,12 +107,20 @@ function DashboardPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Jump to</CardTitle>
+                  <CardTitle className="text-base">🚀 Jump to</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   <Button asChild size="sm" variant="outline">
+                    <Link to="/my-day">My day</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
                     <Link to="/tasks">Tasks</Link>
                   </Button>
+                  {data.staff && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/schedule">Schedule</Link>
+                    </Button>
+                  )}
                   <Button asChild size="sm" variant="outline">
                     <Link to="/maintenance">Maintenance</Link>
                   </Button>
@@ -122,7 +136,7 @@ function DashboardPage() {
             {data.staff && data.activity.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Recent activity</CardTitle>
+                  <CardTitle className="text-base">📜 Recent activity</CardTitle>
                 </CardHeader>
                 <CardContent className="divide-y divide-border p-0">
                   {data.activity.map((a) => (

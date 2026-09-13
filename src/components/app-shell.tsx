@@ -15,6 +15,8 @@ import {
   Palette,
   Star,
   UserCheck,
+  CalendarDays,
+  Sun,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
@@ -33,7 +35,9 @@ type NavItem = { to: string; label: string; icon: typeof Gauge; staffOnly?: bool
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Overview", icon: Gauge },
+  { to: "/my-day", label: "My day", icon: Sun },
   { to: "/tasks", label: "Tasks", icon: ClipboardList },
+  { to: "/schedule", label: "Schedule", icon: CalendarDays, staffOnly: true },
   { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
   { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
   { to: "/maintenance", label: "Maintenance", icon: Wrench },
@@ -71,8 +75,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
             onClick={() => setOpen(false)}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               current
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-primary/10 text-primary shadow-[inset_2px_0_0_0_var(--primary)]"
+                : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted hover:text-foreground"
             }`}
           >
             <Icon className="size-4" aria-hidden />
@@ -199,7 +203,7 @@ function NotificationBell({ orgId }: { orgId: string | null }) {
         <ScrollArea className="max-h-96">
           <div className="divide-y divide-border">
             {(data ?? []).length === 0 && (
-              <p className="p-4 text-sm text-muted-foreground">Nothing new right now.</p>
+              <p className="p-4 text-sm text-muted-foreground">🔕 Nothing new right now.</p>
             )}
             {(data ?? []).map((n) => (
               <div key={n.id} className={`p-4 ${n.read ? "" : "bg-muted/40"}`}>

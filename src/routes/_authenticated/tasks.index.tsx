@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
 import { listTasks } from "@/lib/tasks.functions";
+import { taskStatusEmoji } from "@/lib/task-display";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,9 +90,14 @@ function TasksPage() {
             </SelectContent>
           </Select>
           {staff && (
-            <Button asChild className="ml-auto" size="sm">
-              <Link to="/bookings">Add work from bookings</Link>
-            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link to="/schedule">Week view</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/bookings">Add work from bookings</Link>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -100,7 +106,7 @@ function TasksPage() {
         {!isLoading && rows.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Nothing here yet. Turnover jobs appear as soon as bookings are added.
+              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added.
             </CardContent>
           </Card>
         )}
@@ -108,7 +114,7 @@ function TasksPage() {
         <div className="grid gap-3">
           {rows.map((t) => (
             <Link key={t.id} to="/tasks/$taskId" params={{ taskId: t.id }} className="block">
-              <Card className="transition-colors hover:border-primary/50">
+              <Card className="hover-lift transition-colors hover:border-primary/50">
                 <CardContent className="flex flex-wrap items-center gap-3 p-5">
                   <div className="min-w-48 flex-1">
                     <p className="font-medium">{t.title}</p>
@@ -119,7 +125,9 @@ function TasksPage() {
                   </div>
                   {t.assigneeName && <Badge variant="outline">{t.assigneeName}</Badge>}
                   {t.overdue && <Badge variant="destructive">Overdue</Badge>}
-                  <Badge variant={statusTone(t.status)}>{STATUS_LABEL[t.status] ?? t.status}</Badge>
+                  <Badge variant={statusTone(t.status)}>
+                    {taskStatusEmoji(t.status)} {STATUS_LABEL[t.status] ?? t.status}
+                  </Badge>
                   {t.qcScore !== null && <Badge variant="secondary">{Math.round(t.qcScore * 100)}%</Badge>}
                 </CardContent>
               </Card>
