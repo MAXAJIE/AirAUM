@@ -10,6 +10,7 @@ import {
   deleteProperty,
   type PropertyRow,
 } from "@/lib/properties.functions";
+import { NewJobDialog } from "@/components/new-job-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +139,8 @@ function PropertiesPage() {
                   <p className="text-sm text-muted-foreground">Access code: {p.accessCode}</p>
                 )}
                 {admin && (
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {p.active && <NewJobDialog propertyId={p.id} />}
                     <Button size="sm" variant="outline" onClick={() => setEditing(p)}>
                       Edit
                     </Button>

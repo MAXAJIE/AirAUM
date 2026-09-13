@@ -1,833 +1,324 @@
-diff --git a/src/components/app-shell.tsx b/src/components/app-shell.tsx
-index 60cbfa9..b850dfb 100644
---- a/src/components/app-shell.tsx
-+++ b/src/components/app-shell.tsx
-@@ -17,6 +17,7 @@ import {
-   UserCheck,
-   CalendarDays,
-   Sun,
-+  BarChart3,
- } from "lucide-react";
- import { supabase } from "@/integrations/supabase/client";
- import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
-@@ -41,6 +42,7 @@ const NAV: NavItem[] = [
-   { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
-   { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
-   { to: "/maintenance", label: "Maintenance", icon: Wrench },
-+  { to: "/insights", label: "Insights", icon: BarChart3, staffOnly: true },
-   { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
-   { to: "/guests", label: "Guests", icon: UserCheck, staffOnly: true },
-   { to: "/team", label: "Team", icon: Users, staffOnly: true },
-@@ -200,6 +202,12 @@ function NotificationBell({ orgId }: { orgId: string | null }) {
-         </Button>
-       </PopoverTrigger>
-       <PopoverContent align="end" className="w-96 p-0">
-+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
-+          <p className="text-sm font-medium">🔔 Notifications</p>
-+          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-+            <Link to="/notifications">See all</Link>
-+          </Button>
-+        </div>
-         <ScrollArea className="max-h-96">
-           <div className="divide-y divide-border">
-             {(data ?? []).length === 0 && (
-diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
-index 83ce595..879874c 100644
---- a/src/routeTree.gen.ts
-+++ b/src/routeTree.gen.ts
-@@ -15,8 +15,10 @@ import { Route as AuthRouteImport } from './routes/auth'
- import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
- import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
- import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
-+import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
- import { Route as AuthenticatedMaintenanceRouteImport } from './routes/_authenticated/maintenance'
- import { Route as AuthenticatedMyDayRouteImport } from './routes/_authenticated/my-day'
-+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
- import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
- import { Route as AuthenticatedPropertiesRouteImport } from './routes/_authenticated/properties'
- import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
-@@ -59,6 +61,11 @@ const AuthenticatedGuestsRoute = AuthenticatedGuestsRouteImport.update({
-   path: '/guests',
-   getParentRoute: () => AuthenticatedRouteRoute,
- } as any)
-+const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
-+  id: '/insights',
-+  path: '/insights',
-+  getParentRoute: () => AuthenticatedRouteRoute,
-+} as any)
- const AuthenticatedMaintenanceRoute =
-   AuthenticatedMaintenanceRouteImport.update({
-     id: '/maintenance',
-@@ -70,6 +77,12 @@ const AuthenticatedMyDayRoute = AuthenticatedMyDayRouteImport.update({
-   path: '/my-day',
-   getParentRoute: () => AuthenticatedRouteRoute,
- } as any)
-+const AuthenticatedNotificationsRoute =
-+  AuthenticatedNotificationsRouteImport.update({
-+    id: '/notifications',
-+    path: '/notifications',
-+    getParentRoute: () => AuthenticatedRouteRoute,
-+  } as any)
- const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-   id: '/onboarding',
-   path: '/onboarding',
-@@ -138,8 +151,10 @@ export interface FileRoutesByFullPath {
-   '/bookings': typeof AuthenticatedBookingsRoute
-   '/dashboard': typeof AuthenticatedDashboardRoute
-   '/guests': typeof AuthenticatedGuestsRoute
-+  '/insights': typeof AuthenticatedInsightsRoute
-   '/maintenance': typeof AuthenticatedMaintenanceRoute
-   '/my-day': typeof AuthenticatedMyDayRoute
-+  '/notifications': typeof AuthenticatedNotificationsRoute
-   '/onboarding': typeof AuthenticatedOnboardingRoute
-   '/properties': typeof AuthenticatedPropertiesRoute
-   '/reviews': typeof AuthenticatedReviewsRoute
-@@ -159,8 +174,10 @@ export interface FileRoutesByTo {
-   '/bookings': typeof AuthenticatedBookingsRoute
-   '/dashboard': typeof AuthenticatedDashboardRoute
-   '/guests': typeof AuthenticatedGuestsRoute
-+  '/insights': typeof AuthenticatedInsightsRoute
-   '/maintenance': typeof AuthenticatedMaintenanceRoute
-   '/my-day': typeof AuthenticatedMyDayRoute
-+  '/notifications': typeof AuthenticatedNotificationsRoute
-   '/onboarding': typeof AuthenticatedOnboardingRoute
-   '/properties': typeof AuthenticatedPropertiesRoute
-   '/reviews': typeof AuthenticatedReviewsRoute
-@@ -182,8 +199,10 @@ export interface FileRoutesById {
-   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
-   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-   '/_authenticated/guests': typeof AuthenticatedGuestsRoute
-+  '/_authenticated/insights': typeof AuthenticatedInsightsRoute
-   '/_authenticated/maintenance': typeof AuthenticatedMaintenanceRoute
-   '/_authenticated/my-day': typeof AuthenticatedMyDayRoute
-+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
-   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
-   '/_authenticated/properties': typeof AuthenticatedPropertiesRoute
-   '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
-@@ -205,8 +224,10 @@ export interface FileRouteTypes {
-     | '/bookings'
-     | '/dashboard'
-     | '/guests'
-+    | '/insights'
-     | '/maintenance'
-     | '/my-day'
-+    | '/notifications'
-     | '/onboarding'
-     | '/properties'
-     | '/reviews'
-@@ -226,8 +247,10 @@ export interface FileRouteTypes {
-     | '/bookings'
-     | '/dashboard'
-     | '/guests'
-+    | '/insights'
-     | '/maintenance'
-     | '/my-day'
-+    | '/notifications'
-     | '/onboarding'
-     | '/properties'
-     | '/reviews'
-@@ -248,8 +271,10 @@ export interface FileRouteTypes {
-     | '/_authenticated/bookings'
-     | '/_authenticated/dashboard'
-     | '/_authenticated/guests'
-+    | '/_authenticated/insights'
-     | '/_authenticated/maintenance'
-     | '/_authenticated/my-day'
-+    | '/_authenticated/notifications'
-     | '/_authenticated/onboarding'
-     | '/_authenticated/properties'
-     | '/_authenticated/reviews'
-@@ -318,6 +343,13 @@ declare module '@tanstack/react-router' {
-       preLoaderRoute: typeof AuthenticatedGuestsRouteImport
-       parentRoute: typeof AuthenticatedRouteRoute
-     }
-+    '/_authenticated/insights': {
-+      id: '/_authenticated/insights'
-+      path: '/insights'
-+      fullPath: '/insights'
-+      preLoaderRoute: typeof AuthenticatedInsightsRouteImport
-+      parentRoute: typeof AuthenticatedRouteRoute
-+    }
-     '/_authenticated/maintenance': {
-       id: '/_authenticated/maintenance'
-       path: '/maintenance'
-@@ -332,6 +364,13 @@ declare module '@tanstack/react-router' {
-       preLoaderRoute: typeof AuthenticatedMyDayRouteImport
-       parentRoute: typeof AuthenticatedRouteRoute
-     }
-+    '/_authenticated/notifications': {
-+      id: '/_authenticated/notifications'
-+      path: '/notifications'
-+      fullPath: '/notifications'
-+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
-+      parentRoute: typeof AuthenticatedRouteRoute
-+    }
-     '/_authenticated/onboarding': {
-       id: '/_authenticated/onboarding'
-       path: '/onboarding'
-@@ -423,8 +462,10 @@ interface AuthenticatedRouteRouteChildren {
-   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
-   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-   AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
-+  AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
-   AuthenticatedMaintenanceRoute: typeof AuthenticatedMaintenanceRoute
-   AuthenticatedMyDayRoute: typeof AuthenticatedMyDayRoute
-+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
-   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
-   AuthenticatedPropertiesRoute: typeof AuthenticatedPropertiesRoute
-   AuthenticatedReviewsRoute: typeof AuthenticatedReviewsRoute
-@@ -439,8 +480,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
-   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-   AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
-+  AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
-   AuthenticatedMaintenanceRoute: AuthenticatedMaintenanceRoute,
-   AuthenticatedMyDayRoute: AuthenticatedMyDayRoute,
-+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
-   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
-   AuthenticatedPropertiesRoute: AuthenticatedPropertiesRoute,
-   AuthenticatedReviewsRoute: AuthenticatedReviewsRoute,
-diff --git a/src/routes/_authenticated/tasks.$taskId.tsx b/src/routes/_authenticated/tasks.$taskId.tsx
-index 6694899..a7c3656 100644
---- a/src/routes/_authenticated/tasks.$taskId.tsx
-+++ b/src/routes/_authenticated/tasks.$taskId.tsx
-@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
- import { Textarea } from "@/components/ui/textarea";
- import { Checkbox } from "@/components/ui/checkbox";
- import { Skeleton } from "@/components/ui/skeleton";
-+import { taskStatusEmoji, taskStatusLabel, taskStatusTone } from "@/lib/task-display";
- 
- export const Route = createFileRoute("/_authenticated/tasks/$taskId")({
-   head: () => ({
-@@ -135,6 +136,9 @@ function TaskDetail() {
-   };
- 
-   const t = task.data;
-+  const itemsDone = t ? t.items.filter((i) => i.done).length : 0;
-+  const itemsTotal = t ? t.items.length : 0;
-+  const checklistPercent = itemsTotal ? Math.round((itemsDone / itemsTotal) * 100) : 0;
- 
-   return (
-     <AppShell title="Task">
-@@ -158,7 +162,9 @@ function TaskDetail() {
-               <CardContent className="space-y-2 p-6">
-                 <div className="flex flex-wrap items-center gap-2">
-                   <h2 className="font-display text-xl font-semibold">{t.title}</h2>
--                  <Badge variant="outline">{t.status.replace(/_/g, " ")}</Badge>
-+                  <Badge variant={taskStatusTone(t.status)}>
-+                    {taskStatusEmoji(t.status)} {taskStatusLabel(t.status)}
-+                  </Badge>
-                   {t.qcScore !== null && (
-                     <Badge variant="secondary">Quality {Math.round(t.qcScore * 100)}%</Badge>
-                   )}
-@@ -198,7 +204,7 @@ function TaskDetail() {
-             {suggest.data && (
-               <Card>
-                 <CardHeader>
--                  <CardTitle className="text-base">Who can take this</CardTitle>
-+                  <CardTitle className="text-base">🤝 Who can take this</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-3">
-                   {suggest.data.aiError && (
-@@ -238,7 +244,25 @@ function TaskDetail() {
- 
-             <Card>
-               <CardHeader>
--                <CardTitle className="text-base">Checklist</CardTitle>
-+                <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-+                  <span>🧽 Checklist</span>
-+                  {itemsTotal > 0 && (
-+                    <span className="text-sm font-normal text-muted-foreground">
-+                      {itemsDone}/{itemsTotal} done
-+                    </span>
-+                  )}
-+                  {itemsTotal > 0 && checklistPercent === 100 && (
-+                    <span className="animate-pop text-sm">🎉</span>
-+                  )}
-+                </CardTitle>
-+                {itemsTotal > 0 && (
-+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-+                    <div
-+                      className="h-full rounded-full bg-primary transition-all duration-700"
-+                      style={{ width: `${checklistPercent}%` }}
-+                    />
-+                  </div>
-+                )}
-               </CardHeader>
-               <CardContent className="space-y-2">
-                 {t.items.length === 0 && (
-@@ -267,7 +291,9 @@ function TaskDetail() {
- 
-             <Card>
-               <CardHeader>
--                <CardTitle className="text-base">Photos</CardTitle>
-+                <CardTitle className="text-base">
-+                  📸 Photos{t.photos.length > 0 ? ` (${t.photos.length})` : ""}
-+                </CardTitle>
-               </CardHeader>
-               <CardContent className="space-y-3">
-                 {t.isAssignee && (
-@@ -327,7 +353,7 @@ function TaskDetail() {
-                     </div>
-                   ))}
-                   {t.photos.length === 0 && (
--                    <p className="text-sm text-muted-foreground">No photos yet.</p>
-+                    <p className="text-sm text-muted-foreground">No photos yet. 📷</p>
-                   )}
-                 </div>
-               </CardContent>
-@@ -336,7 +362,7 @@ function TaskDetail() {
-             {t.isAssignee && ["assigned", "in_progress", "needs_review"].includes(t.status) && (
-               <Card>
-                 <CardHeader>
--                  <CardTitle className="text-base">Finish up</CardTitle>
-+                  <CardTitle className="text-base">🏁 Finish up</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-3">
-                   <Textarea
-@@ -354,7 +380,7 @@ function TaskDetail() {
-             {t.canEdit && ["submitted", "needs_review"].includes(t.status) && (
-               <Card>
-                 <CardHeader>
--                  <CardTitle className="text-base">Review</CardTitle>
-+                  <CardTitle className="text-base">🔎 Review</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-3">
-                   <Textarea
-diff --git a/src/routes/g.$code.tsx b/src/routes/g.$code.tsx
-index d761ee6..0deb16b 100644
---- a/src/routes/g.$code.tsx
-+++ b/src/routes/g.$code.tsx
-@@ -224,7 +224,7 @@ function CheckInCard({
-     <Card>
-       <CardContent className="space-y-4 pt-6">
-         <div className="flex items-center justify-between">
--          <h2 className="text-lg font-medium">Check in</h2>
-+          <h2 className="text-lg font-medium">🔑 Check in</h2>
-           {data.checkIn.checkInAt ? <Badge variant="secondary">Done</Badge> : null}
-         </div>
-         <div className="space-y-2">
-@@ -298,7 +298,7 @@ function AmenityCard({
-     <Card>
-       <CardContent className="space-y-4 pt-6">
-         <div>
--          <h2 className="text-lg font-medium">What is in the unit</h2>
-+          <h2 className="text-lg font-medium">🧾 What is in the unit</h2>
-           <p className="text-sm text-muted-foreground">
-             Tell us how many of each item you actually found.
-           </p>
-@@ -400,7 +400,7 @@ function FeedbackCard({ sessionId, onSaved }: { sessionId: string; onSaved: () =
-     <Card>
-       <CardContent className="space-y-4 pt-6">
-         <div>
--          <h2 className="text-lg font-medium">How is the place?</h2>
-+          <h2 className="text-lg font-medium">🧼 How is the place?</h2>
-           <p className="text-sm text-muted-foreground">
-             Rate the cleanliness, or tell your host if something is wrong.
-           </p>
-@@ -489,7 +489,7 @@ function CheckoutCard({
-   return (
-     <Card>
-       <CardContent className="space-y-3 pt-6">
--        <h2 className="text-lg font-medium">Leaving?</h2>
-+        <h2 className="text-lg font-medium">👋 Leaving?</h2>
-         <p className="text-sm text-muted-foreground">
-           Let the cleaning team know the place is free.
-         </p>
-diff --git a/src/lib/insights.functions.ts b/src/lib/insights.functions.ts
+diff --git a/src/routes/_authenticated/properties.tsx b/src/routes/_authenticated/properties.tsx
+index 48e8e4f..4258521 100644
+--- a/src/routes/_authenticated/properties.tsx
++++ b/src/routes/_authenticated/properties.tsx
+@@ -10,6 +10,7 @@ import {
+   deleteProperty,
+   type PropertyRow,
+ } from "@/lib/properties.functions";
++import { NewJobDialog } from "@/components/new-job-dialog";
+ import { Card, CardContent } from "@/components/ui/card";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+@@ -138,7 +139,8 @@ function PropertiesPage() {
+                   <p className="text-sm text-muted-foreground">Access code: {p.accessCode}</p>
+                 )}
+                 {admin && (
+-                  <div className="flex gap-2 pt-2">
++                  <div className="flex flex-wrap gap-2 pt-2">
++                    {p.active && <NewJobDialog propertyId={p.id} />}
+                     <Button size="sm" variant="outline" onClick={() => setEditing(p)}>
+                       Edit
+                     </Button>
+diff --git a/src/routes/_authenticated/tasks.index.tsx b/src/routes/_authenticated/tasks.index.tsx
+index 7d7aa69..55f9e95 100644
+--- a/src/routes/_authenticated/tasks.index.tsx
++++ b/src/routes/_authenticated/tasks.index.tsx
+@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
+ import { useQuery } from "@tanstack/react-query";
+ import { useState } from "react";
+ import { AppShell } from "@/components/app-shell";
++import { NewJobDialog } from "@/components/new-job-dialog";
+ import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
+ import { listTasks } from "@/lib/tasks.functions";
+ import { taskStatusEmoji } from "@/lib/task-display";
+@@ -90,7 +91,8 @@ function TasksPage() {
+             </SelectContent>
+           </Select>
+           {staff && (
+-            <div className="ml-auto flex gap-2">
++            <div className="ml-auto flex flex-wrap gap-2">
++              <NewJobDialog />
+               <Button asChild size="sm" variant="outline">
+                 <Link to="/schedule">Week view</Link>
+               </Button>
+@@ -106,7 +108,8 @@ function TasksPage() {
+         {!isLoading && rows.length === 0 && (
+           <Card>
+             <CardContent className="p-8 text-center text-sm text-muted-foreground">
+-              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added.
++              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added — or create
++              one yourself with “New job”.
+             </CardContent>
+           </Card>
+         )}
+diff --git a/src/components/new-job-dialog.tsx b/src/components/new-job-dialog.tsx
 new file mode 100644
-index 0000000..e8b626a
+index 0000000..59d4179
 --- /dev/null
-+++ b/src/lib/insights.functions.ts
-@@ -0,0 +1,135 @@
-+import { createServerFn } from "@tanstack/react-start";
-+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-+import { z } from "zod";
++++ b/src/components/new-job-dialog.tsx
+@@ -0,0 +1,264 @@
++import { useMemo, useState } from "react";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { useNavigate } from "@tanstack/react-router";
++import { toast } from "sonner";
++import { createAdhocTask } from "@/lib/tasks.functions";
++import { listProperties } from "@/lib/properties.functions";
++import { useWorkspace } from "@/hooks/useWorkspace";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Textarea } from "@/components/ui/textarea";
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogHeader,
++  DialogTitle,
++  DialogTrigger,
++} from "@/components/ui/dialog";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
 +
-+/** Monday-start key for a date, computed on the server in UTC to stay stable. */
-+function weekStart(value: string): string {
-+  const d = new Date(value);
-+  if (Number.isNaN(d.getTime())) return "";
-+  const day = (d.getUTCDay() + 6) % 7;
-+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day));
-+  return monday.toISOString().slice(0, 10);
-+}
-+
-+export type InsightsWeek = {
-+  week: string;
-+  total: number;
-+  completed: number;
-+  quality: number | null;
-+};
-+
-+export type CleanerStat = {
-+  userId: string;
-+  name: string;
-+  completed: number;
-+  quality: number | null;
-+};
++type JobType = "turnover_clean" | "deep_clean" | "inspection" | "maintenance" | "restock";
 +
 +/**
-+ * Read-only manager insights over the last 8 weeks. Everything is aggregated
-+ * in memory from rows the caller is already allowed to see — no new tables.
++ * Presets exist so an owner can raise a job in two clicks. "deep_clean" is the
++ * one for rooms that sat empty for a while and need a full refresh.
 + */
-+export const getInsights = createServerFn({ method: "POST" })
-+  .middleware([requireSupabaseAuth])
-+  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
-+  .handler(async ({ data, context }) => {
-+    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
-+    await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++const PRESETS: { type: JobType; emoji: string; label: string; title: string; minutes: number }[] = [
++  {
++    type: "deep_clean",
++    emoji: "✨",
++    label: "Deep clean (room left empty)",
++    title: "Deep clean",
++    minutes: 240,
++  },
++  {
++    type: "turnover_clean",
++    emoji: "🧹",
++    label: "Turnover clean",
++    title: "Turnover clean",
++    minutes: 120,
++  },
++  {
++    type: "inspection",
++    emoji: "🔎",
++    label: "Inspection walk-through",
++    title: "Inspection",
++    minutes: 60,
++  },
++  {
++    type: "maintenance",
++    emoji: "🔧",
++    label: "Maintenance visit",
++    title: "Maintenance visit",
++    minutes: 120,
++  },
++  {
++    type: "restock",
++    emoji: "🧴",
++    label: "Restock supplies",
++    title: "Restock supplies",
++    minutes: 60,
++  },
++];
 +
-+    const since = new Date(Date.now() - 56 * 86400000);
-+    const sinceIso = since.toISOString();
-+
-+    const { data: tasks } = await supabaseAdmin
-+      .from("tasks")
-+      .select("id, status, qc_score, due_at, assigned_to")
-+      .eq("org_id", data.orgId)
-+      .gte("due_at", sinceIso)
-+      .limit(2000);
-+
-+    const rows = tasks ?? [];
-+
-+    // Weekly buckets, oldest first, with empty weeks kept so the chart has no gaps.
-+    const buckets = new Map<string, { total: number; completed: number; scores: number[] }>();
-+    for (let i = 7; i >= 0; i -= 1) {
-+      const d = new Date(Date.now() - i * 7 * 86400000).toISOString();
-+      buckets.set(weekStart(d), { total: 0, completed: 0, scores: [] });
-+    }
-+    for (const t of rows) {
-+      const key = weekStart(t.due_at);
-+      const bucket = buckets.get(key);
-+      if (!bucket) continue;
-+      bucket.total += 1;
-+      if (t.status === "completed") bucket.completed += 1;
-+      if (t.qc_score !== null) bucket.scores.push(Number(t.qc_score));
-+    }
-+
-+    const weeks: InsightsWeek[] = [...buckets.entries()].map(([week, b]) => ({
-+      week,
-+      total: b.total,
-+      completed: b.completed,
-+      quality: b.scores.length
-+        ? Math.round((b.scores.reduce((a, c) => a + c, 0) / b.scores.length) * 100)
-+        : null,
-+    }));
-+
-+    // Leaderboard: completed jobs per cleaner, with their average quality.
-+    const perUser = new Map<string, { completed: number; scores: number[] }>();
-+    for (const t of rows) {
-+      if (!t.assigned_to || t.status !== "completed") continue;
-+      const entry = perUser.get(t.assigned_to) ?? { completed: 0, scores: [] };
-+      entry.completed += 1;
-+      if (t.qc_score !== null) entry.scores.push(Number(t.qc_score));
-+      perUser.set(t.assigned_to, entry);
-+    }
-+
-+    const userIds = [...perUser.keys()];
-+    const { data: profiles } = userIds.length
-+      ? await supabaseAdmin.from("profiles").select("id, full_name").in("id", userIds)
-+      : { data: [] };
-+    const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
-+
-+    const cleaners: CleanerStat[] = userIds
-+      .map((userId) => {
-+        const entry = perUser.get(userId)!;
-+        return {
-+          userId,
-+          name: nameById.get(userId) ?? "Team member",
-+          completed: entry.completed,
-+          quality: entry.scores.length
-+            ? Math.round((entry.scores.reduce((a, c) => a + c, 0) / entry.scores.length) * 100)
-+            : null,
-+        };
-+      })
-+      .sort((a, b) => b.completed - a.completed)
-+      .slice(0, 8);
-+
-+    const { data: reviews } = await supabaseAdmin
-+      .from("customer_reviews")
-+      .select("rating, status, created_at")
-+      .eq("org_id", data.orgId)
-+      .gte("created_at", sinceIso)
-+      .limit(500);
-+
-+    const scored = (reviews ?? []).filter((r) => r.status !== "archived");
-+    const guestAverage = scored.length
-+      ? Math.round((scored.reduce((sum, r) => sum + Number(r.rating), 0) / scored.length) * 10) / 10
-+      : null;
-+
-+    const completedTotal = rows.filter((t) => t.status === "completed").length;
-+    const allScores = rows.filter((t) => t.qc_score !== null).map((t) => Number(t.qc_score));
-+
-+    return {
-+      weeks,
-+      cleaners,
-+      totals: {
-+        tasks: rows.length,
-+        completed: completedTotal,
-+        completionRate: rows.length ? Math.round((completedTotal / rows.length) * 100) : 0,
-+        quality: allScores.length
-+          ? Math.round((allScores.reduce((a, c) => a + c, 0) / allScores.length) * 100)
-+          : null,
-+        guestAverage,
-+        guestReviews: scored.length,
-+      },
-+    };
-+  });
-diff --git a/src/routes/_authenticated/insights.tsx b/src/routes/_authenticated/insights.tsx
-new file mode 100644
-index 0000000..a4dae3a
---- /dev/null
-+++ b/src/routes/_authenticated/insights.tsx
-@@ -0,0 +1,234 @@
-+import { createFileRoute } from "@tanstack/react-router";
-+import { useQuery } from "@tanstack/react-query";
-+import {
-+  Bar,
-+  BarChart,
-+  CartesianGrid,
-+  Line,
-+  LineChart,
-+  ResponsiveContainer,
-+  Tooltip,
-+  XAxis,
-+  YAxis,
-+} from "recharts";
-+import { AppShell } from "@/components/app-shell";
-+import { useWorkspace } from "@/hooks/useWorkspace";
-+import { getInsights } from "@/lib/insights.functions";
-+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-+import { Badge } from "@/components/ui/badge";
-+import { Skeleton } from "@/components/ui/skeleton";
-+
-+export const Route = createFileRoute("/_authenticated/insights")({
-+  head: () => ({
-+    meta: [
-+      { title: "Insights | AirClean" },
-+      {
-+        name: "description",
-+        content: "Turnovers per week, cleaning quality trend and your team leaderboard.",
-+      },
-+      { property: "og:title", content: "Insights | AirClean" },
-+      {
-+        property: "og:description",
-+        content: "Eight weeks of turnovers, quality and team performance in one view.",
-+      },
-+      { property: "og:type", content: "website" },
-+      { name: "twitter:card", content: "summary" },
-+    ],
-+  }),
-+  component: InsightsPage,
-+});
-+
-+const MEDALS = ["🥇", "🥈", "🥉"];
-+
-+function shortWeek(week: string) {
-+  const d = new Date(`${week}T00:00:00Z`);
-+  if (Number.isNaN(d.getTime())) return week;
-+  return d.toLocaleDateString([], { day: "numeric", month: "short" });
++function toLocalInput(d: Date) {
++  const pad = (n: number) => String(n).padStart(2, "0");
++  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 +}
 +
-+function InsightsPage() {
-+  const { orgId } = useWorkspace();
-+  const { data, isLoading, error } = useQuery({
-+    queryKey: ["insights", orgId],
-+    queryFn: () => getInsights({ data: { orgId: orgId! } }),
-+    enabled: !!orgId,
-+  });
-+
-+  const chartData = (data?.weeks ?? []).map((w) => ({ ...w, label: shortWeek(w.week) }));
-+  const hasQuality = chartData.some((w) => w.quality !== null);
-+
-+  const cards = data
-+    ? [
-+        { label: "Jobs in 8 weeks", value: String(data.totals.tasks), emoji: "🗂️" },
-+        { label: "Finished", value: String(data.totals.completed), emoji: "✅" },
-+        { label: "Completion rate", value: `${data.totals.completionRate}%`, emoji: "📈" },
-+        {
-+          label: "Photo quality",
-+          value: data.totals.quality === null ? "—" : `${data.totals.quality}%`,
-+          emoji: "✨",
-+        },
-+        {
-+          label: "Guest rating",
-+          value: data.totals.guestAverage === null ? "—" : `${data.totals.guestAverage}★`,
-+          emoji: "💬",
-+        },
-+      ]
-+    : [];
-+
-+  return (
-+    <AppShell title="Insights">
-+      <div className="space-y-6">
-+        <div>
-+          <h2 className="font-display text-2xl font-semibold tracking-tight">
-+            📊 Last eight weeks
-+          </h2>
-+          <p className="text-sm text-muted-foreground">
-+            How much work went through, how clean it came out, and who carried it.
-+          </p>
-+        </div>
-+
-+        {isLoading && <Skeleton className="h-40 w-full" />}
-+        {error && (
-+          <Card>
-+            <CardContent className="p-6 text-sm text-destructive">
-+              {(error as Error).message}
-+            </CardContent>
-+          </Card>
-+        )}
-+
-+        {data && (
-+          <>
-+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-+              {cards.map((c, i) => (
-+                <Card
-+                  key={c.label}
-+                  className="animate-rise hover-lift"
-+                  style={{ animationDelay: `${i * 50}ms` }}
-+                >
-+                  <CardContent className="p-5">
-+                    <p className="text-sm text-muted-foreground">
-+                      <span aria-hidden>{c.emoji}</span> {c.label}
-+                    </p>
-+                    <p className="mt-1 font-display text-3xl font-semibold">{c.value}</p>
-+                  </CardContent>
-+                </Card>
-+              ))}
-+            </div>
-+
-+            <Card className="animate-rise">
-+              <CardHeader>
-+                <CardTitle className="text-base">🧺 Turnovers per week</CardTitle>
-+              </CardHeader>
-+              <CardContent>
-+                <div className="h-64 w-full">
-+                  <ResponsiveContainer width="100%" height="100%">
-+                    <BarChart data={chartData}>
-+                      <CartesianGrid
-+                        strokeDasharray="3 3"
-+                        stroke="var(--border)"
-+                        vertical={false}
-+                      />
-+                      <XAxis dataKey="label" fontSize={12} stroke="var(--muted-foreground)" />
-+                      <YAxis allowDecimals={false} fontSize={12} stroke="var(--muted-foreground)" />
-+                      <Tooltip
-+                        contentStyle={{
-+                          background: "var(--card)",
-+                          border: "1px solid var(--border)",
-+                          borderRadius: 8,
-+                          color: "var(--card-foreground)",
-+                        }}
-+                      />
-+                      <Bar
-+                        dataKey="total"
-+                        name="Scheduled"
-+                        radius={[6, 6, 0, 0]}
-+                        fill="var(--muted-foreground)"
-+                        opacity={0.35}
-+                      />
-+                      <Bar
-+                        dataKey="completed"
-+                        name="Finished"
-+                        radius={[6, 6, 0, 0]}
-+                        fill="var(--primary)"
-+                      />
-+                    </BarChart>
-+                  </ResponsiveContainer>
-+                </div>
-+              </CardContent>
-+            </Card>
-+
-+            <Card className="animate-rise">
-+              <CardHeader>
-+                <CardTitle className="text-base">✨ Quality trend</CardTitle>
-+              </CardHeader>
-+              <CardContent>
-+                {hasQuality ? (
-+                  <div className="h-56 w-full">
-+                    <ResponsiveContainer width="100%" height="100%">
-+                      <LineChart data={chartData}>
-+                        <CartesianGrid
-+                          strokeDasharray="3 3"
-+                          stroke="var(--border)"
-+                          vertical={false}
-+                        />
-+                        <XAxis dataKey="label" fontSize={12} stroke="var(--muted-foreground)" />
-+                        <YAxis domain={[0, 100]} fontSize={12} stroke="var(--muted-foreground)" />
-+                        <Tooltip
-+                          contentStyle={{
-+                            background: "var(--card)",
-+                            border: "1px solid var(--border)",
-+                            borderRadius: 8,
-+                            color: "var(--card-foreground)",
-+                          }}
-+                        />
-+                        <Line
-+                          type="monotone"
-+                          dataKey="quality"
-+                          name="Quality %"
-+                          stroke="var(--primary)"
-+                          strokeWidth={2.5}
-+                          dot={{ r: 3 }}
-+                          connectNulls
-+                        />
-+                      </LineChart>
-+                    </ResponsiveContainer>
-+                  </div>
-+                ) : (
-+                  <p className="text-sm text-muted-foreground">
-+                    No photo checks scored yet — the line appears once jobs get reviewed. 🔎
-+                  </p>
-+                )}
-+              </CardContent>
-+            </Card>
-+
-+            <Card className="animate-rise">
-+              <CardHeader>
-+                <CardTitle className="text-base">🏅 Team leaderboard</CardTitle>
-+              </CardHeader>
-+              <CardContent className="space-y-2">
-+                {data.cleaners.length === 0 && (
-+                  <p className="text-sm text-muted-foreground">
-+                    Nobody has finished a job in this window yet. 🌱
-+                  </p>
-+                )}
-+                {data.cleaners.map((c, i) => (
-+                  <div
-+                    key={c.userId}
-+                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm hover-lift"
-+                  >
-+                    <span aria-hidden className="w-6 text-center">
-+                      {MEDALS[i] ?? `${i + 1}.`}
-+                    </span>
-+                    <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-+                    <Badge variant="secondary">{c.completed} done</Badge>
-+                    {c.quality !== null && <Badge variant="outline">✨ {c.quality}%</Badge>}
-+                  </div>
-+                ))}
-+              </CardContent>
-+            </Card>
-+          </>
-+        )}
-+      </div>
-+    </AppShell>
-+  );
-+}
-diff --git a/src/routes/_authenticated/notifications.tsx b/src/routes/_authenticated/notifications.tsx
-new file mode 100644
-index 0000000..fc11c2e
---- /dev/null
-+++ b/src/routes/_authenticated/notifications.tsx
-@@ -0,0 +1,110 @@
-+import { createFileRoute } from "@tanstack/react-router";
-+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-+import { toast } from "sonner";
-+import { AppShell } from "@/components/app-shell";
-+import { useWorkspace } from "@/hooks/useWorkspace";
-+import { listNotifications, markNotificationsRead } from "@/lib/notifications.functions";
-+import { Card, CardContent } from "@/components/ui/card";
-+import { Button } from "@/components/ui/button";
-+import { Badge } from "@/components/ui/badge";
-+import { Skeleton } from "@/components/ui/skeleton";
-+
-+export const Route = createFileRoute("/_authenticated/notifications")({
-+  head: () => ({
-+    meta: [
-+      { title: "Notifications | AirClean" },
-+      { name: "description", content: "Every reminder and alert sent to you, newest first." },
-+      { property: "og:title", content: "Notifications | AirClean" },
-+      { property: "og:description", content: "Reminders and alerts for your turnovers." },
-+      { property: "og:type", content: "website" },
-+      { name: "twitter:card", content: "summary" },
-+    ],
-+  }),
-+  component: NotificationsPage,
-+});
-+
-+/** Small, purely cosmetic emoji per notification template. */
-+function templateEmoji(template: string | null) {
-+  const key = (template ?? "").toLowerCase();
-+  if (key.includes("overdue")) return "⏰";
-+  if (key.includes("unassigned")) return "🕳️";
-+  if (key.includes("assign")) return "📌";
-+  if (key.includes("review")) return "🔎";
-+  if (key.includes("maintenance")) return "🔧";
-+  if (key.includes("guest")) return "🧳";
-+  if (key.includes("invite") || key.includes("join")) return "🤝";
-+  return "🔔";
++function defaultStart() {
++  const d = new Date();
++  d.setMinutes(0, 0, 0);
++  d.setHours(d.getHours() + 1);
++  return toLocalInput(d);
 +}
 +
-+function NotificationsPage() {
++function addMinutes(localValue: string, minutes: number) {
++  const d = new Date(localValue);
++  if (Number.isNaN(d.getTime())) return localValue;
++  d.setMinutes(d.getMinutes() + minutes);
++  return toLocalInput(d);
++}
++
++export function NewJobDialog({ propertyId: fixedPropertyId }: { propertyId?: string }) {
 +  const { orgId } = useWorkspace();
 +  const qc = useQueryClient();
++  const navigate = useNavigate();
 +
-+  const { data, isLoading } = useQuery({
-+    queryKey: ["notifications", orgId],
-+    queryFn: () => listNotifications({ data: { orgId: orgId! } }),
-+    enabled: !!orgId,
++  const [open, setOpen] = useState(false);
++  const [propertyId, setPropertyId] = useState(fixedPropertyId ?? "");
++  const [type, setType] = useState<JobType>("deep_clean");
++  const [title, setTitle] = useState("");
++  const [start, setStart] = useState(defaultStart);
++  const [due, setDue] = useState(() => addMinutes(defaultStart(), 240));
++  const [notes, setNotes] = useState("");
++
++  const properties = useQuery({
++    queryKey: ["properties", orgId],
++    queryFn: () => listProperties({ data: { orgId: orgId! } }),
++    enabled: !!orgId && open,
 +  });
 +
-+  const markAll = useMutation({
-+    mutationFn: () => markNotificationsRead({ data: { orgId: orgId! } }),
-+    onSuccess: () => {
-+      toast.success("All caught up ✅");
-+      qc.invalidateQueries({ queryKey: ["notifications", orgId] });
++  const activeProperties = useMemo(
++    () => (properties.data ?? []).filter((p) => p.active || p.id === propertyId),
++    [properties.data, propertyId],
++  );
++  const preset = PRESETS.find((p) => p.type === type)!;
++  const property = activeProperties.find((p) => p.id === propertyId);
++  const finalTitle = title.trim() || `${preset.title}${property ? ` — ${property.name}` : ""}`;
++
++  function pickType(next: JobType) {
++    setType(next);
++    const nextPreset = PRESETS.find((p) => p.type === next)!;
++    setDue(addMinutes(start, nextPreset.minutes));
++  }
++
++  const create = useMutation({
++    mutationFn: () =>
++      createAdhocTask({
++        data: {
++          orgId: orgId!,
++          propertyId,
++          type,
++          title: finalTitle,
++          scheduledStart: start,
++          dueAt: due,
++          notes: notes.trim() ? notes.trim() : null,
++        },
++      }),
++    onSuccess: (res) => {
++      toast.success("🎉 Job created — now pick who does it.");
++      setOpen(false);
++      setTitle("");
++      setNotes("");
++      qc.invalidateQueries({ queryKey: ["tasks", orgId] });
++      qc.invalidateQueries({ queryKey: ["dashboard", orgId] });
++      navigate({ to: "/tasks/$taskId", params: { taskId: res.id } });
 +    },
-+    onError: (e: Error) => toast.error(e.message || "Could not update these."),
++    onError: (e: Error) => toast.error(e.message),
 +  });
 +
-+  const rows = data ?? [];
-+  const unread = rows.filter((n) => !n.read).length;
++  const invalid = !propertyId || new Date(due) <= new Date(start);
 +
 +  return (
-+    <AppShell title="Notifications">
-+      <div className="mx-auto max-w-2xl space-y-4">
-+        <div className="flex flex-wrap items-center gap-3">
-+          <div className="min-w-0 flex-1">
-+            <h2 className="font-display text-2xl font-semibold tracking-tight">🔔 Your alerts</h2>
-+            <p className="text-sm text-muted-foreground">
-+              {unread > 0 ? `${unread} waiting for you.` : "Nothing unread. Nice. ☕"}
-+            </p>
++    <Dialog open={open} onOpenChange={setOpen}>
++      <DialogTrigger asChild>
++        <Button size="sm" className="animate-pop">
++          ➕ New job
++        </Button>
++      </DialogTrigger>
++      <DialogContent className="max-h-[90vh] overflow-y-auto">
++        <DialogHeader>
++          <DialogTitle>🧽 Create a job</DialogTitle>
++          <DialogDescription>
++            Raise cleaning or upkeep work yourself — handy for a room that has been empty a while.
++          </DialogDescription>
++        </DialogHeader>
++
++        <div className="space-y-4">
++          <div className="space-y-2">
++            <Label htmlFor="job-property">🏠 Place</Label>
++            <Select value={propertyId} onValueChange={setPropertyId} disabled={!!fixedPropertyId}>
++              <SelectTrigger id="job-property">
++                <SelectValue placeholder={properties.isLoading ? "Loading…" : "Choose a place"} />
++              </SelectTrigger>
++              <SelectContent>
++                {activeProperties.map((p) => (
++                  <SelectItem key={p.id} value={p.id}>
++                    {p.name}
++                    {p.unitLabel ? ` · ${p.unitLabel}` : ""}
++                  </SelectItem>
++                ))}
++              </SelectContent>
++            </Select>
 +          </div>
-+          {unread > 0 && (
-+            <Button variant="outline" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
-+              {markAll.isPending ? "Marking…" : "Mark all read"}
-+            </Button>
++
++          <div className="space-y-2">
++            <Label>🧰 What kind of work</Label>
++            <div className="flex flex-wrap gap-2">
++              {PRESETS.map((p) => (
++                <Button
++                  key={p.type}
++                  type="button"
++                  size="sm"
++                  variant={p.type === type ? "default" : "outline"}
++                  className="hover-lift"
++                  onClick={() => pickType(p.type)}
++                >
++                  {p.emoji} {p.label}
++                </Button>
++              ))}
++            </div>
++          </div>
++
++          <div className="space-y-2">
++            <Label htmlFor="job-title">🏷️ Title</Label>
++            <Input
++              id="job-title"
++              value={title}
++              placeholder={finalTitle}
++              onChange={(e) => setTitle(e.target.value)}
++            />
++          </div>
++
++          <div className="grid gap-4 sm:grid-cols-2">
++            <div className="space-y-2">
++              <Label htmlFor="job-start">🕒 Starts</Label>
++              <Input
++                id="job-start"
++                type="datetime-local"
++                value={start}
++                onChange={(e) => {
++                  setStart(e.target.value);
++                  setDue(addMinutes(e.target.value, preset.minutes));
++                }}
++              />
++            </div>
++            <div className="space-y-2">
++              <Label htmlFor="job-due">⏰ Finish by</Label>
++              <Input
++                id="job-due"
++                type="datetime-local"
++                value={due}
++                onChange={(e) => setDue(e.target.value)}
++              />
++            </div>
++          </div>
++
++          <div className="space-y-2">
++            <Label htmlFor="job-notes">📝 Notes for the cleaner (optional)</Label>
++            <Textarea
++              id="job-notes"
++              rows={3}
++              value={notes}
++              placeholder="e.g. Room has been closed for 3 weeks — air it out and run the taps."
++              onChange={(e) => setNotes(e.target.value)}
++            />
++          </div>
++
++          {new Date(due) <= new Date(start) && (
++            <p className="text-sm text-destructive">
++              ⚠️ The deadline has to be after the start time.
++            </p>
 +          )}
-+        </div>
 +
-+        {isLoading && <Skeleton className="h-40 w-full" />}
-+
-+        {!isLoading && rows.length === 0 && (
-+          <Card>
-+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-+              🕊️ No notifications yet.
-+            </CardContent>
-+          </Card>
-+        )}
-+
-+        {rows.map((n, i) => (
-+          <Card
-+            key={n.id}
-+            className={`animate-rise hover-lift ${n.read ? "" : "border-primary/40"}`}
-+            style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
++          <Button
++            className="w-full"
++            disabled={invalid || create.isPending}
++            onClick={() => create.mutate()}
 +          >
-+            <CardContent className="space-y-1 p-4">
-+              <div className="flex items-start gap-2">
-+                <span aria-hidden>{templateEmoji(n.template)}</span>
-+                <p className="min-w-0 flex-1 text-sm font-medium">{n.subject}</p>
-+                {!n.read && <Badge variant="secondary">New</Badge>}
-+              </div>
-+              <p className="text-sm text-muted-foreground">{n.body}</p>
-+              <p className="text-xs text-muted-foreground">
-+                {new Date(n.createdAt).toLocaleString()}
-+              </p>
-+            </CardContent>
-+          </Card>
-+        ))}
-+      </div>
-+    </AppShell>
++            {create.isPending ? "Creating…" : "✅ Create job"}
++          </Button>
++        </div>
++      </DialogContent>
++    </Dialog>
 +  );
 +}

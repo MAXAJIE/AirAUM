@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { NewJobDialog } from "@/components/new-job-dialog";
 import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
 import { listTasks } from "@/lib/tasks.functions";
 import { taskStatusEmoji } from "@/lib/task-display";
@@ -90,7 +91,8 @@ function TasksPage() {
             </SelectContent>
           </Select>
           {staff && (
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex flex-wrap gap-2">
+              <NewJobDialog />
               <Button asChild size="sm" variant="outline">
                 <Link to="/schedule">Week view</Link>
               </Button>
@@ -106,7 +108,8 @@ function TasksPage() {
         {!isLoading && rows.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added.
+              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added — or create
+              one yourself with “New job”.
             </CardContent>
           </Card>
         )}
