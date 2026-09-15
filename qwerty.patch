@@ -1,81 +1,1580 @@
-diff --git a/src/routes/_authenticated/properties.tsx b/src/routes/_authenticated/properties.tsx
-index 48e8e4f..4258521 100644
---- a/src/routes/_authenticated/properties.tsx
-+++ b/src/routes/_authenticated/properties.tsx
-@@ -10,6 +10,7 @@ import {
-   deleteProperty,
-   type PropertyRow,
- } from "@/lib/properties.functions";
-+import { NewJobDialog } from "@/components/new-job-dialog";
- import { Card, CardContent } from "@/components/ui/card";
- import { Button } from "@/components/ui/button";
- import { Input } from "@/components/ui/input";
-@@ -138,7 +139,8 @@ function PropertiesPage() {
-                   <p className="text-sm text-muted-foreground">Access code: {p.accessCode}</p>
-                 )}
-                 {admin && (
--                  <div className="flex gap-2 pt-2">
-+                  <div className="flex flex-wrap gap-2 pt-2">
-+                    {p.active && <NewJobDialog propertyId={p.id} />}
-                     <Button size="sm" variant="outline" onClick={() => setEditing(p)}>
-                       Edit
-                     </Button>
-diff --git a/src/routes/_authenticated/tasks.index.tsx b/src/routes/_authenticated/tasks.index.tsx
-index 7d7aa69..55f9e95 100644
---- a/src/routes/_authenticated/tasks.index.tsx
-+++ b/src/routes/_authenticated/tasks.index.tsx
-@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
- import { useQuery } from "@tanstack/react-query";
- import { useState } from "react";
- import { AppShell } from "@/components/app-shell";
-+import { NewJobDialog } from "@/components/new-job-dialog";
- import { useWorkspace, isStaff } from "@/hooks/useWorkspace";
- import { listTasks } from "@/lib/tasks.functions";
- import { taskStatusEmoji } from "@/lib/task-display";
-@@ -90,7 +91,8 @@ function TasksPage() {
-             </SelectContent>
-           </Select>
-           {staff && (
--            <div className="ml-auto flex gap-2">
-+            <div className="ml-auto flex flex-wrap gap-2">
-+              <NewJobDialog />
-               <Button asChild size="sm" variant="outline">
-                 <Link to="/schedule">Week view</Link>
-               </Button>
-@@ -106,7 +108,8 @@ function TasksPage() {
-         {!isLoading && rows.length === 0 && (
-           <Card>
-             <CardContent className="p-8 text-center text-sm text-muted-foreground">
--              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added.
-+              🧺 Nothing here yet. Turnover jobs appear as soon as bookings are added — or create
-+              one yourself with “New job”.
-             </CardContent>
-           </Card>
-         )}
-diff --git a/src/components/new-job-dialog.tsx b/src/components/new-job-dialog.tsx
+diff --git a/src/components/app-shell.tsx b/src/components/app-shell.tsx
+index b850dfb..26b48c3 100644
+--- a/src/components/app-shell.tsx
++++ b/src/components/app-shell.tsx
+@@ -1,6 +1,6 @@
+ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+ import { useQuery, useQueryClient } from "@tanstack/react-query";
+-import { useState, type ReactNode } from "react";
++import { useEffect, useState, type ReactNode } from "react";
+ import {
+   Building2,
+   CalendarRange,
+@@ -18,6 +18,9 @@ import {
+   CalendarDays,
+   Sun,
+   BarChart3,
++  ListChecks,
++  PackageOpen,
++  ChevronDown,
+ } from "lucide-react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useWorkspace, isStaff, isAdmin, ROLE_LABEL } from "@/hooks/useWorkspace";
+@@ -33,22 +36,52 @@ import { AirCleanLogo } from "@/components/brand";
+ import { Skeleton } from "@/components/ui/skeleton";
+ 
+ type NavItem = { to: string; label: string; icon: typeof Gauge; staffOnly?: boolean; adminOnly?: boolean };
++type NavGroup = { id: string; label: string; items: NavItem[] };
+ 
+-const NAV: NavItem[] = [
+-  { to: "/dashboard", label: "Overview", icon: Gauge },
+-  { to: "/my-day", label: "My day", icon: Sun },
+-  { to: "/tasks", label: "Tasks", icon: ClipboardList },
+-  { to: "/schedule", label: "Schedule", icon: CalendarDays, staffOnly: true },
+-  { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
+-  { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
+-  { to: "/maintenance", label: "Maintenance", icon: Wrench },
+-  { to: "/insights", label: "Insights", icon: BarChart3, staffOnly: true },
+-  { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
+-  { to: "/guests", label: "Guests", icon: UserCheck, staffOnly: true },
+-  { to: "/team", label: "Team", icon: Users, staffOnly: true },
+-  { to: "/settings", label: "Settings", icon: Settings },
++/** The sidebar is grouped so the list stays readable as the app grows. */
++const NAV_GROUPS: NavGroup[] = [
++  {
++    id: "work",
++    label: "Daily work",
++    items: [
++      { to: "/dashboard", label: "Overview", icon: Gauge },
++      { to: "/my-day", label: "My day", icon: Sun },
++      { to: "/tasks", label: "Tasks", icon: ClipboardList },
++      { to: "/schedule", label: "Schedule", icon: CalendarDays, staffOnly: true },
++      { to: "/maintenance", label: "Maintenance", icon: Wrench },
++    ],
++  },
++  {
++    id: "places",
++    label: "Places",
++    items: [
++      { to: "/properties", label: "Properties", icon: Building2, staffOnly: true },
++      { to: "/bookings", label: "Bookings", icon: CalendarRange, staffOnly: true },
++      { to: "/checklists", label: "Checklists", icon: ListChecks, adminOnly: true },
++      { to: "/supplies", label: "Supply lists", icon: PackageOpen, adminOnly: true },
++    ],
++  },
++  {
++    id: "people",
++    label: "People",
++    items: [
++      { to: "/guests", label: "Guests", icon: UserCheck, staffOnly: true },
++      { to: "/reviews", label: "Reviews", icon: Star, staffOnly: true },
++      { to: "/team", label: "Team", icon: Users, staffOnly: true },
++    ],
++  },
++  {
++    id: "admin",
++    label: "Workspace",
++    items: [
++      { to: "/insights", label: "Insights", icon: BarChart3, staffOnly: true },
++      { to: "/settings", label: "Settings", icon: Settings },
++    ],
++  },
+ ];
+ 
++const COLLAPSE_KEY = "opspilot.navCollapsed";
++
+ export function AppShell({ children, title }: { children: ReactNode; title: string }) {
+   const { session, isLoading, orgId, setOrgId, workspace, workspaces } = useWorkspace();
+   const navigate = useNavigate();
+@@ -56,9 +89,13 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
+   const pathname = useRouterState({ select: (s) => s.location.pathname });
+ 
+   const active = workspaces.filter((w) => w.status === "active");
+-  const items = NAV.filter(
+-    (n) => (!n.staffOnly || isStaff(workspace?.role)) && (!n.adminOnly || isAdmin(workspace?.role)),
+-  );
++  const groups = NAV_GROUPS.map((group) => ({
++    ...group,
++    items: group.items.filter(
++      (n) =>
++        (!n.staffOnly || isStaff(workspace?.role)) && (!n.adminOnly || isAdmin(workspace?.role)),
++    ),
++  })).filter((group) => group.items.length > 0);
+ 
+   const signOut = async () => {
+     await supabase.auth.signOut();
+@@ -66,26 +103,15 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
+   };
+ 
+   const nav = (
+-    <nav className="flex flex-col gap-1">
+-      {items.map((item) => {
+-        const Icon = item.icon;
+-        const current = pathname.startsWith(item.to);
+-        return (
+-          <Link
+-            key={item.to}
+-            to={item.to}
+-            onClick={() => setOpen(false)}
+-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+-              current
+-                ? "bg-primary/10 text-primary shadow-[inset_2px_0_0_0_var(--primary)]"
+-                : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted hover:text-foreground"
+-            }`}
+-          >
+-            <Icon className="size-4" aria-hidden />
+-            {item.label}
+-          </Link>
+-        );
+-      })}
++    <nav className="flex flex-col gap-4">
++      {groups.map((group) => (
++        <NavSection
++          key={group.id}
++          group={group}
++          pathname={pathname}
++          onNavigate={() => setOpen(false)}
++        />
++      ))}
+     </nav>
+   );
+ 
+@@ -173,6 +199,82 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
+   );
+ }
+ 
++/** One collapsible sidebar group. The open/closed choice is remembered per browser. */
++function NavSection({
++  group,
++  pathname,
++  onNavigate,
++}: {
++  group: { id: string; label: string; items: NavItem[] };
++  pathname: string;
++  onNavigate: () => void;
++}) {
++  const [collapsed, setCollapsed] = useState(false);
++
++  useEffect(() => {
++    try {
++      const raw = window.localStorage.getItem(COLLAPSE_KEY);
++      const ids: string[] = raw ? JSON.parse(raw) : [];
++      setCollapsed(ids.includes(group.id));
++    } catch {
++      /* storage unavailable */
++    }
++  }, [group.id]);
++
++  const toggle = () => {
++    const next = !collapsed;
++    setCollapsed(next);
++    try {
++      const raw = window.localStorage.getItem(COLLAPSE_KEY);
++      const ids: string[] = raw ? JSON.parse(raw) : [];
++      const updated = next ? [...new Set([...ids, group.id])] : ids.filter((i) => i !== group.id);
++      window.localStorage.setItem(COLLAPSE_KEY, JSON.stringify(updated));
++    } catch {
++      /* storage unavailable */
++    }
++  };
++
++  return (
++    <div>
++      <button
++        type="button"
++        onClick={toggle}
++        aria-expanded={!collapsed}
++        className="flex w-full items-center justify-between rounded px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
++      >
++        {group.label}
++        <ChevronDown
++          className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : ""}`}
++          aria-hidden
++        />
++      </button>
++      {!collapsed && (
++        <div className="mt-1 flex flex-col gap-1">
++          {group.items.map((item) => {
++            const Icon = item.icon;
++            const current = pathname.startsWith(item.to);
++            return (
++              <Link
++                key={item.to}
++                to={item.to}
++                onClick={onNavigate}
++                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
++                  current
++                    ? "bg-primary/10 text-primary shadow-[inset_2px_0_0_0_var(--primary)]"
++                    : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted hover:text-foreground"
++                }`}
++              >
++                <Icon className="size-4" aria-hidden />
++                {item.label}
++              </Link>
++            );
++          })}
++        </div>
++      )}
++    </div>
++  );
++}
++
+ function NotificationBell({ orgId }: { orgId: string | null }) {
+   const qc = useQueryClient();
+   const { data } = useQuery({
+diff --git a/src/integrations/supabase/types.ts b/src/integrations/supabase/types.ts
+index 10265f8..ea25695 100644
+--- a/src/integrations/supabase/types.ts
++++ b/src/integrations/supabase/types.ts
+@@ -163,7 +163,10 @@ export type Database = {
+           name: string
+           org_id: string
+           property_id: string
++          qty_overridden: boolean
+           sort_order: number
++          template_id: string | null
++          template_item_id: string | null
+           unit: string | null
+           updated_at: string
+         }
+@@ -175,7 +178,10 @@ export type Database = {
+           name: string
+           org_id: string
+           property_id: string
++          qty_overridden?: boolean
+           sort_order?: number
++          template_id?: string | null
++          template_item_id?: string | null
+           unit?: string | null
+           updated_at?: string
+         }
+@@ -187,7 +193,10 @@ export type Database = {
+           name?: string
+           org_id?: string
+           property_id?: string
++          qty_overridden?: boolean
+           sort_order?: number
++          template_id?: string | null
++          template_item_id?: string | null
+           unit?: string | null
+           updated_at?: string
+         }
+@@ -206,6 +215,100 @@ export type Database = {
+             referencedRelation: "properties"
+             referencedColumns: ["id"]
+           },
++          {
++            foreignKeyName: "amenity_definitions_template_id_fkey"
++            columns: ["template_id"]
++            isOneToOne: false
++            referencedRelation: "amenity_templates"
++            referencedColumns: ["id"]
++          },
++          {
++            foreignKeyName: "amenity_definitions_template_item_id_fkey"
++            columns: ["template_item_id"]
++            isOneToOne: false
++            referencedRelation: "amenity_template_items"
++            referencedColumns: ["id"]
++          },
++        ]
++      }
++      amenity_template_items: {
++        Row: {
++          expected_qty: number
++          id: string
++          name: string
++          org_id: string
++          sort_order: number
++          template_id: string
++          unit: string | null
++        }
++        Insert: {
++          expected_qty?: number
++          id?: string
++          name: string
++          org_id: string
++          sort_order?: number
++          template_id: string
++          unit?: string | null
++        }
++        Update: {
++          expected_qty?: number
++          id?: string
++          name?: string
++          org_id?: string
++          sort_order?: number
++          template_id?: string
++          unit?: string | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "amenity_template_items_org_id_fkey"
++            columns: ["org_id"]
++            isOneToOne: false
++            referencedRelation: "organizations"
++            referencedColumns: ["id"]
++          },
++          {
++            foreignKeyName: "amenity_template_items_template_id_fkey"
++            columns: ["template_id"]
++            isOneToOne: false
++            referencedRelation: "amenity_templates"
++            referencedColumns: ["id"]
++          },
++        ]
++      }
++      amenity_templates: {
++        Row: {
++          created_at: string
++          id: string
++          is_active: boolean
++          name: string
++          org_id: string
++          updated_at: string
++        }
++        Insert: {
++          created_at?: string
++          id?: string
++          is_active?: boolean
++          name: string
++          org_id: string
++          updated_at?: string
++        }
++        Update: {
++          created_at?: string
++          id?: string
++          is_active?: boolean
++          name?: string
++          org_id?: string
++          updated_at?: string
++        }
++        Relationships: [
++          {
++            foreignKeyName: "amenity_templates_org_id_fkey"
++            columns: ["org_id"]
++            isOneToOne: false
++            referencedRelation: "organizations"
++            referencedColumns: ["id"]
++          },
+         ]
+       }
+       audit_logs: {
+@@ -455,27 +558,33 @@ export type Database = {
+         Row: {
+           created_at: string
+           id: string
++          is_active: boolean
+           is_default: boolean
+           name: string
+           org_id: string
++          property_id: string | null
+           task_type: Database["public"]["Enums"]["task_type"]
+           updated_at: string
+         }
+         Insert: {
+           created_at?: string
+           id?: string
++          is_active?: boolean
+           is_default?: boolean
+           name: string
+           org_id: string
++          property_id?: string | null
+           task_type?: Database["public"]["Enums"]["task_type"]
+           updated_at?: string
+         }
+         Update: {
+           created_at?: string
+           id?: string
++          is_active?: boolean
+           is_default?: boolean
+           name?: string
+           org_id?: string
++          property_id?: string | null
+           task_type?: Database["public"]["Enums"]["task_type"]
+           updated_at?: string
+         }
+@@ -487,6 +596,13 @@ export type Database = {
+             referencedRelation: "organizations"
+             referencedColumns: ["id"]
+           },
++          {
++            foreignKeyName: "checklists_property_id_fkey"
++            columns: ["property_id"]
++            isOneToOne: false
++            referencedRelation: "properties"
++            referencedColumns: ["id"]
++          },
+         ]
+       }
+       cleaner_profiles: {
+@@ -1178,6 +1294,7 @@ export type Database = {
+           access_code_enc: string | null
+           active: boolean
+           address_enc: string | null
++          amenity_template_id: string | null
+           bathrooms: number
+           bedrooms: number
+           city: string | null
+@@ -1197,6 +1314,7 @@ export type Database = {
+           access_code_enc?: string | null
+           active?: boolean
+           address_enc?: string | null
++          amenity_template_id?: string | null
+           bathrooms?: number
+           bedrooms?: number
+           city?: string | null
+@@ -1216,6 +1334,7 @@ export type Database = {
+           access_code_enc?: string | null
+           active?: boolean
+           address_enc?: string | null
++          amenity_template_id?: string | null
+           bathrooms?: number
+           bedrooms?: number
+           city?: string | null
+@@ -1232,6 +1351,13 @@ export type Database = {
+           updated_at?: string
+         }
+         Relationships: [
++          {
++            foreignKeyName: "properties_amenity_template_id_fkey"
++            columns: ["amenity_template_id"]
++            isOneToOne: false
++            referencedRelation: "amenity_templates"
++            referencedColumns: ["id"]
++          },
+           {
+             foreignKeyName: "properties_org_id_fkey"
+             columns: ["org_id"]
+diff --git a/src/lib/amenities.functions.ts b/src/lib/amenities.functions.ts
 new file mode 100644
-index 0000000..59d4179
+index 0000000..0557f86
 --- /dev/null
-+++ b/src/components/new-job-dialog.tsx
-@@ -0,0 +1,264 @@
-+import { useMemo, useState } from "react";
++++ b/src/lib/amenities.functions.ts
+@@ -0,0 +1,318 @@
++import { createServerFn } from "@tanstack/react-start";
++import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
++import { z } from "zod";
++
++/**
++ * Room supply templates ("2 bath towels, 1 shampoo, …").
++ *
++ * A place follows one template. Template edits flow through to every linked
++ * place, except for a quantity the place has deliberately changed.
++ */
++
++export type AmenityTemplateItem = {
++  id: string;
++  name: string;
++  expectedQty: number;
++  unit: string | null;
++  sortOrder: number;
++};
++
++export type AmenityTemplate = {
++  id: string;
++  name: string;
++  isActive: boolean;
++  items: AmenityTemplateItem[];
++  linkedProperties: { id: string; name: string }[];
++};
++
++export const listAmenityTemplates = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
++  .handler(async ({ data, context }): Promise<AmenityTemplate[]> => {
++    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++
++    const [{ data: templates }, { data: items }, { data: properties }] = await Promise.all([
++      supabaseAdmin
++        .from("amenity_templates")
++        .select("id, name, is_active")
++        .eq("org_id", data.orgId)
++        .order("name"),
++      supabaseAdmin
++        .from("amenity_template_items")
++        .select("id, template_id, name, expected_qty, unit, sort_order")
++        .eq("org_id", data.orgId)
++        .order("sort_order"),
++      supabaseAdmin
++        .from("properties")
++        .select("id, name, amenity_template_id")
++        .eq("org_id", data.orgId)
++        .order("name"),
++    ]);
++
++    return (templates ?? []).map((t) => ({
++      id: t.id,
++      name: t.name,
++      isActive: t.is_active,
++      items: (items ?? [])
++        .filter((i) => i.template_id === t.id)
++        .map((i) => ({
++          id: i.id,
++          name: i.name,
++          expectedQty: i.expected_qty,
++          unit: i.unit,
++          sortOrder: i.sort_order,
++        })),
++      linkedProperties: (properties ?? [])
++        .filter((p) => p.amenity_template_id === t.id)
++        .map((p) => ({ id: p.id, name: p.name })),
++    }));
++  });
++
++export const saveAmenityTemplate = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        orgId: z.string().uuid(),
++        id: z.string().uuid().optional(),
++        name: z.string().trim().min(1).max(120),
++        items: z
++          .array(
++            z.object({
++              id: z.string().uuid().optional(),
++              name: z.string().trim().min(1).max(120),
++              expectedQty: z.number().int().min(0).max(999),
++              unit: z.string().trim().max(30).nullable().default(null),
++            }),
++          )
++          .max(100),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    let templateId = data.id ?? null;
++    if (templateId) {
++      const { error } = await supabaseAdmin
++        .from("amenity_templates")
++        .update({ name: data.name })
++        .eq("id", templateId)
++        .eq("org_id", data.orgId);
++      if (error) throw new Error("Could not save the supply list.");
++    } else {
++      const { data: created, error } = await supabaseAdmin
++        .from("amenity_templates")
++        .insert({ org_id: data.orgId, name: data.name })
++        .select("id")
++        .single();
++      if (error || !created) throw new Error("A supply list with that name already exists.");
++      templateId = created.id;
++    }
++
++    const { data: existing } = await supabaseAdmin
++      .from("amenity_template_items")
++      .select("id")
++      .eq("template_id", templateId);
++    const keep = new Set(data.items.map((i) => i.id).filter(Boolean) as string[]);
++    for (const row of existing ?? []) {
++      if (!keep.has(row.id)) {
++        await supabaseAdmin.from("amenity_template_items").delete().eq("id", row.id);
++      }
++    }
++
++    for (const [index, item] of data.items.entries()) {
++      const values = {
++        org_id: data.orgId,
++        template_id: templateId,
++        name: item.name,
++        expected_qty: item.expectedQty,
++        unit: item.unit,
++        sort_order: index,
++      };
++      if (item.id) {
++        await supabaseAdmin.from("amenity_template_items").update(values).eq("id", item.id);
++      } else {
++        await supabaseAdmin.from("amenity_template_items").insert(values);
++      }
++    }
++
++    const { syncTemplateToProperties } = await import("./amenities.server");
++    await syncTemplateToProperties(data.orgId, templateId);
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: data.id ? "amenity_template.updated" : "amenity_template.created",
++      entityType: "amenity_template",
++      entityId: templateId,
++      metadata: { name: data.name },
++    });
++
++    return { id: templateId };
++  });
++
++export const deleteAmenityTemplate = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z.object({ orgId: z.string().uuid(), id: z.string().uuid() }).parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    // Places keep the supply lines they already have; they simply stop
++    // following the template.
++    await supabaseAdmin
++      .from("amenity_definitions")
++      .update({ template_id: null, template_item_id: null })
++      .eq("org_id", data.orgId)
++      .eq("template_id", data.id);
++    await supabaseAdmin
++      .from("properties")
++      .update({ amenity_template_id: null })
++      .eq("org_id", data.orgId)
++      .eq("amenity_template_id", data.id);
++
++    const { error } = await supabaseAdmin
++      .from("amenity_templates")
++      .delete()
++      .eq("id", data.id)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not delete the supply list.");
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: "amenity_template.deleted",
++      entityType: "amenity_template",
++      entityId: data.id,
++    });
++    return { ok: true };
++  });
++
++/** Links a place to a supply template (or unlinks it when templateId is null). */
++export const applyAmenityTemplate = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        orgId: z.string().uuid(),
++        propertyId: z.string().uuid(),
++        templateId: z.string().uuid().nullable(),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    // Drop the lines from any template the place used to follow. Lines it
++    // added by hand (no template) are left alone.
++    await supabaseAdmin
++      .from("amenity_definitions")
++      .delete()
++      .eq("property_id", data.propertyId)
++      .not("template_id", "is", null);
++
++    const { error } = await supabaseAdmin
++      .from("properties")
++      .update({ amenity_template_id: data.templateId })
++      .eq("id", data.propertyId)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not apply the supply list.");
++
++    if (data.templateId) {
++      const { syncTemplateToProperties } = await import("./amenities.server");
++      await syncTemplateToProperties(data.orgId, data.templateId);
++    }
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: "amenity_template.applied",
++      entityType: "property",
++      entityId: data.propertyId,
++      metadata: { templateId: data.templateId ?? "none" },
++    });
++    return { ok: true };
++  });
++
++export type PropertyAmenity = {
++  id: string;
++  name: string;
++  expectedQty: number;
++  unit: string | null;
++  fromTemplate: boolean;
++  qtyOverridden: boolean;
++};
++
++export const listPropertyAmenities = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z.object({ orgId: z.string().uuid(), propertyId: z.string().uuid() }).parse(d),
++  )
++  .handler(
++    async ({
++      data,
++      context,
++    }): Promise<{ templateId: string | null; amenities: PropertyAmenity[] }> => {
++      const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
++      await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++
++      const [{ data: property }, { data: rows }] = await Promise.all([
++        supabaseAdmin
++          .from("properties")
++          .select("amenity_template_id")
++          .eq("id", data.propertyId)
++          .eq("org_id", data.orgId)
++          .maybeSingle(),
++        supabaseAdmin
++          .from("amenity_definitions")
++          .select("id, name, expected_qty, unit, template_id, qty_overridden")
++          .eq("property_id", data.propertyId)
++          .eq("active", true)
++          .order("sort_order")
++          .order("name"),
++      ]);
++
++      return {
++        templateId: property?.amenity_template_id ?? null,
++        amenities: (rows ?? []).map((a) => ({
++          id: a.id,
++          name: a.name,
++          expectedQty: a.expected_qty,
++          unit: a.unit,
++          fromTemplate: !!a.template_id,
++          qtyOverridden: a.qty_overridden,
++        })),
++      };
++    },
++  );
++
++/** Sets a place-specific quantity that later template edits will not overwrite. */
++export const setPropertyAmenityQty = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z
++      .object({
++        orgId: z.string().uuid(),
++        id: z.string().uuid(),
++        expectedQty: z.number().int().min(0).max(999),
++      })
++      .parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    const { error } = await supabaseAdmin
++      .from("amenity_definitions")
++      .update({ expected_qty: data.expectedQty, qty_overridden: true })
++      .eq("id", data.id)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not change the quantity.");
++    return { ok: true };
++  });
+diff --git a/src/lib/amenities.server.ts b/src/lib/amenities.server.ts
+new file mode 100644
+index 0000000..f9b930f
+--- /dev/null
++++ b/src/lib/amenities.server.ts
+@@ -0,0 +1,74 @@
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++
++/**
++ * Keeps every place that follows a supply template in step with it.
++ *
++ * A place's supply line remembers the template line it came from. Renaming or
++ * re-ordering a template line updates the linked lines everywhere; the expected
++ * quantity is only pushed down when the place has not set its own figure
++ * (`qty_overridden`).
++ */
++export async function syncTemplateToProperties(orgId: string, templateId: string) {
++  const [{ data: items }, { data: properties }] = await Promise.all([
++    supabaseAdmin
++      .from("amenity_template_items")
++      .select("id, name, expected_qty, unit, sort_order")
++      .eq("template_id", templateId)
++      .order("sort_order"),
++    supabaseAdmin
++      .from("properties")
++      .select("id")
++      .eq("org_id", orgId)
++      .eq("amenity_template_id", templateId),
++  ]);
++
++  const lines = items ?? [];
++  const lineIds = lines.map((i) => i.id);
++
++  for (const property of properties ?? []) {
++    const { data: existing } = await supabaseAdmin
++      .from("amenity_definitions")
++      .select("id, template_item_id, qty_overridden")
++      .eq("property_id", property.id)
++      .eq("template_id", templateId);
++
++    const byLine = new Map(
++      (existing ?? []).filter((e) => e.template_item_id).map((e) => [e.template_item_id!, e]),
++    );
++
++    for (const line of lines) {
++      const match = byLine.get(line.id);
++      if (match) {
++        await supabaseAdmin
++          .from("amenity_definitions")
++          .update({
++            name: line.name,
++            unit: line.unit,
++            sort_order: line.sort_order,
++            active: true,
++            ...(match.qty_overridden ? {} : { expected_qty: line.expected_qty }),
++          })
++          .eq("id", match.id);
++      } else {
++        await supabaseAdmin.from("amenity_definitions").insert({
++          org_id: orgId,
++          property_id: property.id,
++          template_id: templateId,
++          template_item_id: line.id,
++          name: line.name,
++          expected_qty: line.expected_qty,
++          unit: line.unit,
++          sort_order: line.sort_order,
++        });
++      }
++    }
++
++    // Lines removed from the template disappear from the linked places too.
++    const stale = (existing ?? []).filter(
++      (e) => !e.template_item_id || !lineIds.includes(e.template_item_id),
++    );
++    for (const row of stale) {
++      await supabaseAdmin.from("amenity_definitions").delete().eq("id", row.id);
++    }
++  }
++}
+diff --git a/src/lib/checklists.functions.ts b/src/lib/checklists.functions.ts
+new file mode 100644
+index 0000000..d6e6c71
+--- /dev/null
++++ b/src/lib/checklists.functions.ts
+@@ -0,0 +1,209 @@
++import { createServerFn } from "@tanstack/react-start";
++import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
++import { z } from "zod";
++
++/**
++ * Cleaning checklist templates.
++ *
++ * A workspace keeps shared templates (no property). Any single place may
++ * override a template for one job type; the override wins when a job is
++ * created. See `resolveChecklistId` in ops.server.ts.
++ */
++
++const TASK_TYPES = ["turnover_clean", "deep_clean", "inspection", "maintenance", "restock"] as const;
++
++export type ChecklistItemRow = {
++  id: string;
++  label: string;
++  room: string;
++  requiresPhoto: boolean;
++  position: number;
++};
++
++export type ChecklistRow = {
++  id: string;
++  name: string;
++  taskType: (typeof TASK_TYPES)[number];
++  propertyId: string | null;
++  propertyName: string | null;
++  isDefault: boolean;
++  isActive: boolean;
++  items: ChecklistItemRow[];
++};
++
++export const listChecklists = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
++  .handler(async ({ data, context }): Promise<ChecklistRow[]> => {
++    const { requireMembership, supabaseAdmin, STAFF_ROLES } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, STAFF_ROLES);
++
++    const [{ data: lists }, { data: items }, { data: properties }] = await Promise.all([
++      supabaseAdmin
++        .from("checklists")
++        .select("id, name, task_type, property_id, is_default, is_active")
++        .eq("org_id", data.orgId)
++        .order("name"),
++      supabaseAdmin
++        .from("checklist_items")
++        .select("id, checklist_id, label, room, requires_photo, position")
++        .eq("org_id", data.orgId)
++        .order("position"),
++      supabaseAdmin.from("properties").select("id, name").eq("org_id", data.orgId),
++    ]);
++
++    const names = new Map((properties ?? []).map((p) => [p.id, p.name]));
++    return (lists ?? []).map((l) => ({
++      id: l.id,
++      name: l.name,
++      taskType: l.task_type,
++      propertyId: l.property_id,
++      propertyName: l.property_id ? (names.get(l.property_id) ?? null) : null,
++      isDefault: l.is_default,
++      isActive: l.is_active,
++      items: (items ?? [])
++        .filter((i) => i.checklist_id === l.id)
++        .map((i) => ({
++          id: i.id,
++          label: i.label,
++          room: i.room,
++          requiresPhoto: i.requires_photo,
++          position: i.position,
++        })),
++    }));
++  });
++
++const checklistInput = z.object({
++  orgId: z.string().uuid(),
++  id: z.string().uuid().optional(),
++  name: z.string().trim().min(1).max(120),
++  taskType: z.enum(TASK_TYPES),
++  propertyId: z.string().uuid().nullable().default(null),
++  isDefault: z.boolean().default(false),
++  isActive: z.boolean().default(true),
++  items: z
++    .array(
++      z.object({
++        label: z.string().trim().min(1).max(200),
++        room: z.string().trim().max(60).default("General"),
++        requiresPhoto: z.boolean().default(false),
++      }),
++    )
++    .max(200),
++});
++
++export const saveChecklist = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) => checklistInput.parse(d))
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    // A place can only carry one override per job type.
++    if (data.propertyId) {
++      const { data: clash } = await supabaseAdmin
++        .from("checklists")
++        .select("id")
++        .eq("org_id", data.orgId)
++        .eq("property_id", data.propertyId)
++        .eq("task_type", data.taskType)
++        .maybeSingle();
++      if (clash && clash.id !== data.id) {
++        throw new Error("That place already has a checklist for this kind of job.");
++      }
++    }
++
++    const row = {
++      org_id: data.orgId,
++      name: data.name,
++      task_type: data.taskType,
++      property_id: data.propertyId,
++      // Only a shared template can be the workspace default.
++      is_default: data.propertyId ? false : data.isDefault,
++      is_active: data.isActive,
++    };
++
++    let checklistId = data.id ?? null;
++    if (checklistId) {
++      const { error } = await supabaseAdmin
++        .from("checklists")
++        .update(row)
++        .eq("id", checklistId)
++        .eq("org_id", data.orgId);
++      if (error) throw new Error("Could not save the checklist.");
++    } else {
++      const { data: created, error } = await supabaseAdmin
++        .from("checklists")
++        .insert(row)
++        .select("id")
++        .single();
++      if (error || !created) throw new Error("Could not create the checklist.");
++      checklistId = created.id;
++    }
++
++    // Only one shared default per job type.
++    if (row.is_default) {
++      await supabaseAdmin
++        .from("checklists")
++        .update({ is_default: false })
++        .eq("org_id", data.orgId)
++        .eq("task_type", data.taskType)
++        .is("property_id", null)
++        .neq("id", checklistId);
++    }
++
++    // Lines are replaced wholesale — already-created jobs keep their own copy.
++    await supabaseAdmin.from("checklist_items").delete().eq("checklist_id", checklistId);
++    if (data.items.length) {
++      const { error } = await supabaseAdmin.from("checklist_items").insert(
++        data.items.map((i, index) => ({
++          org_id: data.orgId,
++          checklist_id: checklistId,
++          label: i.label,
++          room: i.room || "General",
++          requires_photo: i.requiresPhoto,
++          position: index,
++        })),
++      );
++      if (error) throw new Error("Could not save the checklist lines.");
++    }
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: data.id ? "checklist.updated" : "checklist.created",
++      entityType: "checklist",
++      entityId: checklistId,
++      metadata: { name: data.name, taskType: data.taskType },
++    });
++
++    return { id: checklistId };
++  });
++
++export const deleteChecklist = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((d: unknown) =>
++    z.object({ orgId: z.string().uuid(), id: z.string().uuid() }).parse(d),
++  )
++  .handler(async ({ data, context }) => {
++    const { requireMembership, supabaseAdmin, ADMIN_ROLES, logAudit } = await import("./ops.server");
++    await requireMembership(context.userId, data.orgId, ADMIN_ROLES);
++
++    // Jobs reference the checklist they were built from; keep that history by
++    // retiring the template rather than deleting it.
++    const { error } = await supabaseAdmin
++      .from("checklists")
++      .update({ is_active: false, is_default: false })
++      .eq("id", data.id)
++      .eq("org_id", data.orgId);
++    if (error) throw new Error("Could not retire the checklist.");
++
++    await logAudit({
++      orgId: data.orgId,
++      actorId: context.userId,
++      action: "checklist.retired",
++      entityType: "checklist",
++      entityId: data.id,
++    });
++    return { ok: true };
++  });
+diff --git a/src/lib/guest.functions.ts b/src/lib/guest.functions.ts
+index 1ede326..430a8a8 100644
+--- a/src/lib/guest.functions.ts
++++ b/src/lib/guest.functions.ts
+@@ -53,13 +53,20 @@ export const getGuestPortal = createServerFn({ method: "POST" })
+     };
+   });
+ 
+-/** Public: exchange the door access code for a stay session. */
++/**
++ * Public: start a stay session from the guest's own name and party size.
++ *
++ * The door access code is deliberately NOT asked for here — guests arriving
++ * from the in-room QR poster already have physical access, and typing the door
++ * code into a web page is the thing we do not want to teach them to do.
++ */
+ export const startGuestSession = createServerFn({ method: "POST" })
+   .inputValidator((d: unknown) =>
+     z
+       .object({
+         code: z.string().min(4).max(40),
+-        accessCode: z.string().min(1).max(120),
++        guestName: z.string().trim().min(2).max(120),
++        partySize: z.number().int().min(1).max(30),
+       })
+       .parse(d),
+   )
+@@ -67,25 +74,34 @@ export const startGuestSession = createServerFn({ method: "POST" })
+     const db = await guestDb();
+     const { data: property } = await db
+       .from("properties")
+-      .select("id, org_id, name, access_code_enc, active")
++      .select("id, org_id, name, active")
+       .eq("guest_code", normaliseGuestCode(data.code))
+       .maybeSingle();
+     if (!property || !property.active) throw new Error("bad_code");
+ 
+-    const { decryptField } = await import("./crypto.server");
+-    const expected = await decryptField(property.access_code_enc);
+-    if (!expected) throw new Error("no_access_code");
+-    if (expected.trim().toLowerCase() !== data.accessCode.trim().toLowerCase()) {
+-      throw new Error("bad_code");
+-    }
+-
+     const { data: session, error } = await db
+       .from("guest_sessions")
+-      .insert({ org_id: property.org_id, property_id: property.id })
++      .insert({
++        org_id: property.org_id,
++        property_id: property.id,
++        guest_name: data.guestName.trim(),
++        party_size: data.partySize,
++        check_in_at: new Date().toISOString(),
++      })
+       .select("id, expires_at")
+       .single();
+     if (error || !session) throw new Error("Could not start your stay session.");
+ 
++    const { logAudit } = await import("./ops.server");
++    await logAudit({
++      orgId: property.org_id,
++      actorType: "system",
++      action: "guest_checked_in",
++      entityType: "guest_session",
++      entityId: session.id,
++      metadata: { propertyId: property.id, partySize: data.partySize },
++    });
++
+     return {
+       sessionId: session.id,
+       expiresAt: session.expires_at,
+@@ -217,7 +233,14 @@ export const saveGuestCheckIn = createServerFn({ method: "POST" })
+     return { ok: true };
+   });
+ 
+-/** Public: the guest counts what is actually in the unit. */
++/**
++ * Public: the guest counts what is actually in the unit.
++ *
++ * Anything counted below the expected quantity is a shortage. A shortage is
++ * never saved silently: the call is refused until the guest has seen the list
++ * and confirmed it, and the confirmed counts are then raised with the host as
++ * an open report so somebody restocks the unit.
++ */
+ export const saveGuestAmenityCheck = createServerFn({ method: "POST" })
+   .inputValidator((d: unknown) =>
+     z
+@@ -233,6 +256,7 @@ export const saveGuestAmenityCheck = createServerFn({ method: "POST" })
+           )
+           .min(1)
+           .max(200),
++        confirmShortage: z.boolean().default(false),
+       })
+       .parse(d),
+   )
+@@ -243,30 +267,74 @@ export const saveGuestAmenityCheck = createServerFn({ method: "POST" })
+     const db = await guestDb();
+     const { data: amenities } = await db
+       .from("amenity_definitions")
+-      .select("id")
++      .select("id, name, expected_qty, unit")
+       .eq("property_id", session.propertyId)
+       .eq("active", true);
+ 
+-    const allowed = new Set((amenities ?? []).map((a) => a.id));
+-    const rows = data.entries
+-      .filter((e) => allowed.has(e.amenityId))
+-      .map((e) => ({
+-        org_id: session.orgId,
+-        property_id: session.propertyId,
+-        amenity_id: e.amenityId,
+-        session_id: session.sessionId,
+-        source: "guest" as const,
+-        found_qty: e.foundQty,
+-        note: e.note,
+-      }));
+-    if (rows.length === 0) throw new Error("Nothing to save.");
++    const byId = new Map((amenities ?? []).map((a) => [a.id, a]));
++    const entries = data.entries.filter((e) => byId.has(e.amenityId));
++    if (entries.length === 0) throw new Error("Nothing to save.");
++
++    const shortages = entries
++      .map((e) => {
++        const a = byId.get(e.amenityId)!;
++        return {
++          amenityId: a.id,
++          name: a.name,
++          expectedQty: a.expected_qty,
++          foundQty: e.foundQty,
++          unit: a.unit,
++        };
++      })
++      .filter((s) => s.foundQty < s.expectedQty);
++
++    // Blocked until the guest has confirmed the shortage list they are sending.
++    if (shortages.length > 0 && !data.confirmShortage) {
++      return { saved: 0, blocked: true as const, shortages };
++    }
++
++    const rows = entries.map((e) => ({
++      org_id: session.orgId,
++      property_id: session.propertyId,
++      amenity_id: e.amenityId,
++      session_id: session.sessionId,
++      source: "guest" as const,
++      found_qty: e.foundQty,
++      note: e.note,
++    }));
+ 
+     const { error } = await db
+       .from("amenity_checks")
+       .upsert(rows, { onConflict: "session_id,amenity_id" });
+     if (error) throw new Error("Could not save your check.");
+ 
+-    return { saved: rows.length };
++    if (shortages.length > 0) {
++      const summary = shortages
++        .map(
++          (s) => `${s.name}: found ${s.foundQty} of ${s.expectedQty}${s.unit ? ` ${s.unit}` : ""}`,
++        )
++        .join("; ");
++      await db.from("guest_reports").insert({
++        org_id: session.orgId,
++        property_id: session.propertyId,
++        session_id: session.sessionId,
++        kind: "complaint",
++        status: "open",
++        complaint: `Items missing in the unit — ${summary}`,
++      });
++
++      const { logAudit } = await import("./ops.server");
++      await logAudit({
++        orgId: session.orgId,
++        actorType: "system",
++        action: "guest_reported_shortage",
++        entityType: "guest_session",
++        entityId: session.sessionId,
++        metadata: { propertyId: session.propertyId, shortages },
++      });
++    }
++
++    return { saved: rows.length, blocked: false as const, shortages };
+   });
+ 
+ /** Public: prepare a direct upload slot for a hygiene photo. */
+diff --git a/src/lib/ops.server.ts b/src/lib/ops.server.ts
+index 6197ceb..fb1b74d 100644
+--- a/src/lib/ops.server.ts
++++ b/src/lib/ops.server.ts
+@@ -58,6 +58,39 @@ export async function logAudit(entry: {
+   });
+ }
+ 
++/**
++ * Picks the checklist a new job should copy its lines from.
++ *
++ * A workspace keeps shared templates (property_id IS NULL). A single place may
++ * override one of them for a given job type; that override wins.
++ */
++export async function resolveChecklistId(
++  orgId: string,
++  propertyId: string,
++  taskType: Database["public"]["Enums"]["task_type"],
++): Promise<string | null> {
++  const { data: override } = await supabaseAdmin
++    .from("checklists")
++    .select("id")
++    .eq("org_id", orgId)
++    .eq("task_type", taskType)
++    .eq("property_id", propertyId)
++    .eq("is_active", true)
++    .maybeSingle();
++  if (override) return override.id;
++
++  const { data: shared } = await supabaseAdmin
++    .from("checklists")
++    .select("id")
++    .eq("org_id", orgId)
++    .eq("task_type", taskType)
++    .is("property_id", null)
++    .eq("is_active", true)
++    .eq("is_default", true)
++    .maybeSingle();
++  return shared?.id ?? null;
++}
++
+ export type NotificationTemplate =
+   | "task_assigned"
+   | "task_reassigned"
+diff --git a/src/lib/scheduling.server.ts b/src/lib/scheduling.server.ts
+index 0ddd38e..72ffb59 100644
+--- a/src/lib/scheduling.server.ts
++++ b/src/lib/scheduling.server.ts
+@@ -52,13 +52,9 @@ export async function ensureTurnoverTask(orgId: string, booking: Booking, timezo
+     .eq("id", booking.property_id)
+     .maybeSingle();
+ 
+-  const { data: checklist } = await supabaseAdmin
+-    .from("checklists")
+-    .select("id")
+-    .eq("org_id", orgId)
+-    .eq("task_type", "turnover_clean")
+-    .eq("is_default", true)
+-    .maybeSingle();
++  const { resolveChecklistId } = await import("./ops.server");
++  const checklistId = await resolveChecklistId(orgId, booking.property_id, "turnover_clean");
++  const checklist = checklistId ? { id: checklistId } : null;
+ 
+   const start = zonedIso(booking.check_out, booking.check_out_time, timezone);
+   const due = zonedIso(booking.check_out, booking.next_check_in_time, timezone);
+diff --git a/src/lib/tasks.functions.ts b/src/lib/tasks.functions.ts
+index 16adc2d..8e25fcc 100644
+--- a/src/lib/tasks.functions.ts
++++ b/src/lib/tasks.functions.ts
+@@ -203,19 +203,15 @@ export const createAdhocTask = createServerFn({ method: "POST" })
+       .parse(d),
+   )
+   .handler(async ({ data, context }) => {
+-    const { requireMembership, supabaseAdmin, STAFF_ROLES, logAudit } = await import("./ops.server");
++    const { requireMembership, supabaseAdmin, STAFF_ROLES, logAudit, resolveChecklistId } =
++      await import("./ops.server");
+     await requireMembership(context.userId, data.orgId, STAFF_ROLES);
+     if (new Date(data.dueAt) <= new Date(data.scheduledStart)) {
+       throw new Error("The deadline must be after the start time.");
+     }
+ 
+-    const { data: checklist } = await supabaseAdmin
+-      .from("checklists")
+-      .select("id")
+-      .eq("org_id", data.orgId)
+-      .eq("task_type", data.type)
+-      .eq("is_default", true)
+-      .maybeSingle();
++    const checklistId = await resolveChecklistId(data.orgId, data.propertyId, data.type);
++    const checklist = checklistId ? { id: checklistId } : null;
+ 
+     const { data: task, error } = await supabaseAdmin
+       .from("tasks")
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index 879874c..26dfe98 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
+ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+ import { Route as AuthRouteImport } from './routes/auth'
+ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
++import { Route as AuthenticatedChecklistsRouteImport } from './routes/_authenticated/checklists'
+ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+ import { Route as AuthenticatedGuestsRouteImport } from './routes/_authenticated/guests'
+ import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
+@@ -24,6 +25,7 @@ import { Route as AuthenticatedPropertiesRouteImport } from './routes/_authentic
+ import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
+ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
++import { Route as AuthenticatedSuppliesRouteImport } from './routes/_authenticated/supplies'
+ import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
+ import { Route as GCodeRouteImport } from './routes/g.$code'
+ import { Route as RSlugRouteImport } from './routes/r.$slug'
+@@ -51,6 +53,11 @@ const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
+   path: '/bookings',
+   getParentRoute: () => AuthenticatedRouteRoute,
+ } as any)
++const AuthenticatedChecklistsRoute = AuthenticatedChecklistsRouteImport.update({
++  id: '/checklists',
++  path: '/checklists',
++  getParentRoute: () => AuthenticatedRouteRoute,
++} as any)
+ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+   id: '/dashboard',
+   path: '/dashboard',
+@@ -108,6 +115,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+   path: '/settings',
+   getParentRoute: () => AuthenticatedRouteRoute,
+ } as any)
++const AuthenticatedSuppliesRoute = AuthenticatedSuppliesRouteImport.update({
++  id: '/supplies',
++  path: '/supplies',
++  getParentRoute: () => AuthenticatedRouteRoute,
++} as any)
+ const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+   id: '/team',
+   path: '/team',
+@@ -149,6 +161,7 @@ export interface FileRoutesByFullPath {
+   '/': typeof IndexRoute
+   '/auth': typeof AuthRoute
+   '/bookings': typeof AuthenticatedBookingsRoute
++  '/checklists': typeof AuthenticatedChecklistsRoute
+   '/dashboard': typeof AuthenticatedDashboardRoute
+   '/guests': typeof AuthenticatedGuestsRoute
+   '/insights': typeof AuthenticatedInsightsRoute
+@@ -160,6 +173,7 @@ export interface FileRoutesByFullPath {
+   '/reviews': typeof AuthenticatedReviewsRoute
+   '/schedule': typeof AuthenticatedScheduleRoute
+   '/settings': typeof AuthenticatedSettingsRoute
++  '/supplies': typeof AuthenticatedSuppliesRoute
+   '/team': typeof AuthenticatedTeamRoute
+   '/g/$code': typeof GCodeRoute
+   '/r/$slug': typeof RSlugRoute
+@@ -172,6 +186,7 @@ export interface FileRoutesByTo {
+   '/': typeof IndexRoute
+   '/auth': typeof AuthRoute
+   '/bookings': typeof AuthenticatedBookingsRoute
++  '/checklists': typeof AuthenticatedChecklistsRoute
+   '/dashboard': typeof AuthenticatedDashboardRoute
+   '/guests': typeof AuthenticatedGuestsRoute
+   '/insights': typeof AuthenticatedInsightsRoute
+@@ -183,6 +198,7 @@ export interface FileRoutesByTo {
+   '/reviews': typeof AuthenticatedReviewsRoute
+   '/schedule': typeof AuthenticatedScheduleRoute
+   '/settings': typeof AuthenticatedSettingsRoute
++  '/supplies': typeof AuthenticatedSuppliesRoute
+   '/team': typeof AuthenticatedTeamRoute
+   '/g/$code': typeof GCodeRoute
+   '/r/$slug': typeof RSlugRoute
+@@ -197,6 +213,7 @@ export interface FileRoutesById {
+   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+   '/auth': typeof AuthRoute
+   '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
++  '/_authenticated/checklists': typeof AuthenticatedChecklistsRoute
+   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+   '/_authenticated/guests': typeof AuthenticatedGuestsRoute
+   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
+@@ -208,6 +225,7 @@ export interface FileRoutesById {
+   '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
+   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
+   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
++  '/_authenticated/supplies': typeof AuthenticatedSuppliesRoute
+   '/_authenticated/team': typeof AuthenticatedTeamRoute
+   '/g/$code': typeof GCodeRoute
+   '/r/$slug': typeof RSlugRoute
+@@ -222,6 +240,7 @@ export interface FileRouteTypes {
+     | '/'
+     | '/auth'
+     | '/bookings'
++    | '/checklists'
+     | '/dashboard'
+     | '/guests'
+     | '/insights'
+@@ -233,6 +252,7 @@ export interface FileRouteTypes {
+     | '/reviews'
+     | '/schedule'
+     | '/settings'
++    | '/supplies'
+     | '/team'
+     | '/g/$code'
+     | '/r/$slug'
+@@ -245,6 +265,7 @@ export interface FileRouteTypes {
+     | '/'
+     | '/auth'
+     | '/bookings'
++    | '/checklists'
+     | '/dashboard'
+     | '/guests'
+     | '/insights'
+@@ -256,6 +277,7 @@ export interface FileRouteTypes {
+     | '/reviews'
+     | '/schedule'
+     | '/settings'
++    | '/supplies'
+     | '/team'
+     | '/g/$code'
+     | '/r/$slug'
+@@ -269,6 +291,7 @@ export interface FileRouteTypes {
+     | '/_authenticated'
+     | '/auth'
+     | '/_authenticated/bookings'
++    | '/_authenticated/checklists'
+     | '/_authenticated/dashboard'
+     | '/_authenticated/guests'
+     | '/_authenticated/insights'
+@@ -280,6 +303,7 @@ export interface FileRouteTypes {
+     | '/_authenticated/reviews'
+     | '/_authenticated/schedule'
+     | '/_authenticated/settings'
++    | '/_authenticated/supplies'
+     | '/_authenticated/team'
+     | '/g/$code'
+     | '/r/$slug'
+@@ -329,6 +353,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof AuthenticatedBookingsRouteImport
+       parentRoute: typeof AuthenticatedRouteRoute
+     }
++    '/_authenticated/checklists': {
++      id: '/_authenticated/checklists'
++      path: '/checklists'
++      fullPath: '/checklists'
++      preLoaderRoute: typeof AuthenticatedChecklistsRouteImport
++      parentRoute: typeof AuthenticatedRouteRoute
++    }
+     '/_authenticated/dashboard': {
+       id: '/_authenticated/dashboard'
+       path: '/dashboard'
+@@ -406,6 +437,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+       parentRoute: typeof AuthenticatedRouteRoute
+     }
++    '/_authenticated/supplies': {
++      id: '/_authenticated/supplies'
++      path: '/supplies'
++      fullPath: '/supplies'
++      preLoaderRoute: typeof AuthenticatedSuppliesRouteImport
++      parentRoute: typeof AuthenticatedRouteRoute
++    }
+     '/_authenticated/team': {
+       id: '/_authenticated/team'
+       path: '/team'
+@@ -460,6 +498,7 @@ declare module '@tanstack/react-router' {
+ 
+ interface AuthenticatedRouteRouteChildren {
+   AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
++  AuthenticatedChecklistsRoute: typeof AuthenticatedChecklistsRoute
+   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+   AuthenticatedGuestsRoute: typeof AuthenticatedGuestsRoute
+   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
+@@ -471,6 +510,7 @@ interface AuthenticatedRouteRouteChildren {
+   AuthenticatedReviewsRoute: typeof AuthenticatedReviewsRoute
+   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
+   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
++  AuthenticatedSuppliesRoute: typeof AuthenticatedSuppliesRoute
+   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+   AuthenticatedTasksTaskIdRoute: typeof AuthenticatedTasksTaskIdRoute
+   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+@@ -478,6 +518,7 @@ interface AuthenticatedRouteRouteChildren {
+ 
+ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+   AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
++  AuthenticatedChecklistsRoute: AuthenticatedChecklistsRoute,
+   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+   AuthenticatedGuestsRoute: AuthenticatedGuestsRoute,
+   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
+@@ -489,6 +530,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+   AuthenticatedReviewsRoute: AuthenticatedReviewsRoute,
+   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
+   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
++  AuthenticatedSuppliesRoute: AuthenticatedSuppliesRoute,
+   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+   AuthenticatedTasksTaskIdRoute: AuthenticatedTasksTaskIdRoute,
+   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+diff --git a/src/routes/_authenticated/checklists.tsx b/src/routes/_authenticated/checklists.tsx
+new file mode 100644
+index 0000000..2c1a413
+--- /dev/null
++++ b/src/routes/_authenticated/checklists.tsx
+@@ -0,0 +1,430 @@
++import { createFileRoute } from "@tanstack/react-router";
 +import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-+import { useNavigate } from "@tanstack/react-router";
++import { useState } from "react";
 +import { toast } from "sonner";
-+import { createAdhocTask } from "@/lib/tasks.functions";
++import { AppShell } from "@/components/app-shell";
++import { useWorkspace, isAdmin } from "@/hooks/useWorkspace";
++import {
++  listChecklists,
++  saveChecklist,
++  deleteChecklist,
++  type ChecklistRow,
++} from "@/lib/checklists.functions";
 +import { listProperties } from "@/lib/properties.functions";
-+import { useWorkspace } from "@/hooks/useWorkspace";
++import { Card, CardContent } from "@/components/ui/card";
 +import { Button } from "@/components/ui/button";
 +import { Input } from "@/components/ui/input";
 +import { Label } from "@/components/ui/label";
-+import { Textarea } from "@/components/ui/textarea";
++import { Badge } from "@/components/ui/badge";
++import { Switch } from "@/components/ui/switch";
++import { Skeleton } from "@/components/ui/skeleton";
 +import {
 +  Dialog,
 +  DialogContent,
 +  DialogDescription,
 +  DialogHeader,
 +  DialogTitle,
-+  DialogTrigger,
 +} from "@/components/ui/dialog";
 +import {
 +  Select,
@@ -85,240 +1584,1117 @@ index 0000000..59d4179
 +  SelectValue,
 +} from "@/components/ui/select";
 +
-+type JobType = "turnover_clean" | "deep_clean" | "inspection" | "maintenance" | "restock";
++export const Route = createFileRoute("/_authenticated/checklists")({
++  head: () => ({
++    meta: [
++      { title: "Cleaning checklists — AirClean" },
++      {
++        name: "description",
++        content:
++          "Build reusable cleaning checklists for your workspace and give a single place its own version when it needs one.",
++      },
++      { property: "og:title", content: "Cleaning checklists — AirClean" },
++      {
++        property: "og:description",
++        content: "Reusable cleaning checklists, with per-place overrides.",
++      },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary" },
++    ],
++  }),
++  component: ChecklistsPage,
++});
 +
-+/**
-+ * Presets exist so an owner can raise a job in two clicks. "deep_clean" is the
-+ * one for rooms that sat empty for a while and need a full refresh.
-+ */
-+const PRESETS: { type: JobType; emoji: string; label: string; title: string; minutes: number }[] = [
-+  {
-+    type: "deep_clean",
-+    emoji: "✨",
-+    label: "Deep clean (room left empty)",
-+    title: "Deep clean",
-+    minutes: 240,
-+  },
-+  {
-+    type: "turnover_clean",
-+    emoji: "🧹",
-+    label: "Turnover clean",
-+    title: "Turnover clean",
-+    minutes: 120,
-+  },
-+  {
-+    type: "inspection",
-+    emoji: "🔎",
-+    label: "Inspection walk-through",
-+    title: "Inspection",
-+    minutes: 60,
-+  },
-+  {
-+    type: "maintenance",
-+    emoji: "🔧",
-+    label: "Maintenance visit",
-+    title: "Maintenance visit",
-+    minutes: 120,
-+  },
-+  {
-+    type: "restock",
-+    emoji: "🧴",
-+    label: "Restock supplies",
-+    title: "Restock supplies",
-+    minutes: 60,
-+  },
-+];
++const TASK_TYPES = [
++  { value: "turnover_clean", label: "🧹 Turnover clean" },
++  { value: "deep_clean", label: "✨ Deep clean" },
++  { value: "inspection", label: "🔎 Inspection" },
++  { value: "maintenance", label: "🔧 Maintenance" },
++  { value: "restock", label: "🧴 Restock" },
++] as const;
 +
-+function toLocalInput(d: Date) {
-+  const pad = (n: number) => String(n).padStart(2, "0");
-+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-+}
++type TaskType = (typeof TASK_TYPES)[number]["value"];
++type DraftItem = { label: string; room: string; requiresPhoto: boolean };
 +
-+function defaultStart() {
-+  const d = new Date();
-+  d.setMinutes(0, 0, 0);
-+  d.setHours(d.getHours() + 1);
-+  return toLocalInput(d);
-+}
++type Draft = {
++  id?: string;
++  name: string;
++  taskType: TaskType;
++  propertyId: string | null;
++  isDefault: boolean;
++  isActive: boolean;
++  items: DraftItem[];
++};
 +
-+function addMinutes(localValue: string, minutes: number) {
-+  const d = new Date(localValue);
-+  if (Number.isNaN(d.getTime())) return localValue;
-+  d.setMinutes(d.getMinutes() + minutes);
-+  return toLocalInput(d);
-+}
++const emptyDraft = (): Draft => ({
++  name: "",
++  taskType: "turnover_clean",
++  propertyId: null,
++  isDefault: false,
++  isActive: true,
++  items: [{ label: "", room: "General", requiresPhoto: false }],
++});
 +
-+export function NewJobDialog({ propertyId: fixedPropertyId }: { propertyId?: string }) {
-+  const { orgId } = useWorkspace();
++function ChecklistsPage() {
++  const { orgId, workspace } = useWorkspace();
 +  const qc = useQueryClient();
-+  const navigate = useNavigate();
++  const admin = isAdmin(workspace?.role);
++  const [draft, setDraft] = useState<Draft | null>(null);
 +
-+  const [open, setOpen] = useState(false);
-+  const [propertyId, setPropertyId] = useState(fixedPropertyId ?? "");
-+  const [type, setType] = useState<JobType>("deep_clean");
-+  const [title, setTitle] = useState("");
-+  const [start, setStart] = useState(defaultStart);
-+  const [due, setDue] = useState(() => addMinutes(defaultStart(), 240));
-+  const [notes, setNotes] = useState("");
++  const lists = useQuery({
++    queryKey: ["checklists", orgId],
++    queryFn: () => listChecklists({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
 +
 +  const properties = useQuery({
 +    queryKey: ["properties", orgId],
 +    queryFn: () => listProperties({ data: { orgId: orgId! } }),
-+    enabled: !!orgId && open,
++    enabled: !!orgId,
 +  });
 +
-+  const activeProperties = useMemo(
-+    () => (properties.data ?? []).filter((p) => p.active || p.id === propertyId),
-+    [properties.data, propertyId],
-+  );
-+  const preset = PRESETS.find((p) => p.type === type)!;
-+  const property = activeProperties.find((p) => p.id === propertyId);
-+  const finalTitle = title.trim() || `${preset.title}${property ? ` — ${property.name}` : ""}`;
-+
-+  function pickType(next: JobType) {
-+    setType(next);
-+    const nextPreset = PRESETS.find((p) => p.type === next)!;
-+    setDue(addMinutes(start, nextPreset.minutes));
-+  }
-+
-+  const create = useMutation({
-+    mutationFn: () =>
-+      createAdhocTask({
++  const save = useMutation({
++    mutationFn: (d: Draft) =>
++      saveChecklist({
 +        data: {
 +          orgId: orgId!,
-+          propertyId,
-+          type,
-+          title: finalTitle,
-+          scheduledStart: start,
-+          dueAt: due,
-+          notes: notes.trim() ? notes.trim() : null,
++          ...(d.id ? { id: d.id } : {}),
++          name: d.name.trim(),
++          taskType: d.taskType,
++          propertyId: d.propertyId,
++          isDefault: d.isDefault,
++          isActive: d.isActive,
++          items: d.items
++            .filter((i) => i.label.trim())
++            .map((i) => ({
++              label: i.label.trim(),
++              room: i.room.trim() || "General",
++              requiresPhoto: i.requiresPhoto,
++            })),
 +        },
 +      }),
-+    onSuccess: (res) => {
-+      toast.success("🎉 Job created — now pick who does it.");
-+      setOpen(false);
-+      setTitle("");
-+      setNotes("");
-+      qc.invalidateQueries({ queryKey: ["tasks", orgId] });
-+      qc.invalidateQueries({ queryKey: ["dashboard", orgId] });
-+      navigate({ to: "/tasks/$taskId", params: { taskId: res.id } });
++    onSuccess: () => {
++      toast.success("✅ Checklist saved.");
++      setDraft(null);
++      qc.invalidateQueries({ queryKey: ["checklists", orgId] });
 +    },
 +    onError: (e: Error) => toast.error(e.message),
 +  });
 +
-+  const invalid = !propertyId || new Date(due) <= new Date(start);
++  const retire = useMutation({
++    mutationFn: (id: string) => deleteChecklist({ data: { orgId: orgId!, id } }),
++    onSuccess: () => {
++      toast.success("Checklist retired.");
++      qc.invalidateQueries({ queryKey: ["checklists", orgId] });
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const rows = lists.data ?? [];
++  const shared = rows.filter((r) => !r.propertyId);
++  const overrides = rows.filter((r) => r.propertyId);
++
++  const toDraft = (r: ChecklistRow): Draft => ({
++    id: r.id,
++    name: r.name,
++    taskType: r.taskType,
++    propertyId: r.propertyId,
++    isDefault: r.isDefault,
++    isActive: r.isActive,
++    items: r.items.length
++      ? r.items.map((i) => ({ label: i.label, room: i.room, requiresPhoto: i.requiresPhoto }))
++      : [{ label: "", room: "General", requiresPhoto: false }],
++  });
 +
 +  return (
-+    <Dialog open={open} onOpenChange={setOpen}>
-+      <DialogTrigger asChild>
-+        <Button size="sm" className="animate-pop">
-+          ➕ New job
-+        </Button>
-+      </DialogTrigger>
-+      <DialogContent className="max-h-[90vh] overflow-y-auto">
-+        <DialogHeader>
-+          <DialogTitle>🧽 Create a job</DialogTitle>
-+          <DialogDescription>
-+            Raise cleaning or upkeep work yourself — handy for a room that has been empty a while.
-+          </DialogDescription>
-+        </DialogHeader>
++    <AppShell title="Checklists">
++      <div className="space-y-6">
++        <div className="flex flex-wrap items-center gap-3">
++          <p className="text-sm text-muted-foreground">
++            Shared checklists are copied onto every new job. A place can keep its own version for
++            one kind of job, and that one wins.
++          </p>
++          {admin && (
++            <Button size="sm" className="ml-auto" onClick={() => setDraft(emptyDraft())}>
++              ➕ New checklist
++            </Button>
++          )}
++        </div>
 +
-+        <div className="space-y-4">
-+          <div className="space-y-2">
-+            <Label htmlFor="job-property">🏠 Place</Label>
-+            <Select value={propertyId} onValueChange={setPropertyId} disabled={!!fixedPropertyId}>
-+              <SelectTrigger id="job-property">
-+                <SelectValue placeholder={properties.isLoading ? "Loading…" : "Choose a place"} />
-+              </SelectTrigger>
-+              <SelectContent>
-+                {activeProperties.map((p) => (
-+                  <SelectItem key={p.id} value={p.id}>
-+                    {p.name}
-+                    {p.unitLabel ? ` · ${p.unitLabel}` : ""}
-+                  </SelectItem>
-+                ))}
-+              </SelectContent>
-+            </Select>
-+          </div>
++        {lists.isLoading && <Skeleton className="h-40 w-full" />}
 +
-+          <div className="space-y-2">
-+            <Label>🧰 What kind of work</Label>
-+            <div className="flex flex-wrap gap-2">
-+              {PRESETS.map((p) => (
-+                <Button
-+                  key={p.type}
-+                  type="button"
-+                  size="sm"
-+                  variant={p.type === type ? "default" : "outline"}
-+                  className="hover-lift"
-+                  onClick={() => pickType(p.type)}
-+                >
-+                  {p.emoji} {p.label}
-+                </Button>
++        {!lists.isLoading && rows.length === 0 && (
++          <Card>
++            <CardContent className="p-8 text-center text-sm text-muted-foreground">
++              📋 No checklists yet. Create one and every new job will start from it.
++            </CardContent>
++          </Card>
++        )}
++
++        {shared.length > 0 && (
++          <section className="space-y-3">
++            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
++              Shared templates
++            </h2>
++            <div className="grid gap-3 md:grid-cols-2">
++              {shared.map((r) => (
++                <ChecklistCard
++                  key={r.id}
++                  row={r}
++                  admin={admin}
++                  onEdit={() => setDraft(toDraft(r))}
++                  onRetire={() => retire.mutate(r.id)}
++                />
 +              ))}
 +            </div>
-+          </div>
++          </section>
++        )}
 +
-+          <div className="space-y-2">
-+            <Label htmlFor="job-title">🏷️ Title</Label>
-+            <Input
-+              id="job-title"
-+              value={title}
-+              placeholder={finalTitle}
-+              onChange={(e) => setTitle(e.target.value)}
-+            />
-+          </div>
-+
-+          <div className="grid gap-4 sm:grid-cols-2">
-+            <div className="space-y-2">
-+              <Label htmlFor="job-start">🕒 Starts</Label>
-+              <Input
-+                id="job-start"
-+                type="datetime-local"
-+                value={start}
-+                onChange={(e) => {
-+                  setStart(e.target.value);
-+                  setDue(addMinutes(e.target.value, preset.minutes));
-+                }}
-+              />
++        {overrides.length > 0 && (
++          <section className="space-y-3">
++            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
++              Place-specific
++            </h2>
++            <div className="grid gap-3 md:grid-cols-2">
++              {overrides.map((r) => (
++                <ChecklistCard
++                  key={r.id}
++                  row={r}
++                  admin={admin}
++                  onEdit={() => setDraft(toDraft(r))}
++                  onRetire={() => retire.mutate(r.id)}
++                />
++              ))}
 +            </div>
-+            <div className="space-y-2">
-+              <Label htmlFor="job-due">⏰ Finish by</Label>
-+              <Input
-+                id="job-due"
-+                type="datetime-local"
-+                value={due}
-+                onChange={(e) => setDue(e.target.value)}
-+              />
++          </section>
++        )}
++      </div>
++
++      <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
++        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
++          <DialogHeader>
++            <DialogTitle>{draft?.id ? "Edit checklist" : "New checklist"}</DialogTitle>
++            <DialogDescription>
++              Lines are copied onto new jobs. Jobs already created keep the lines they were given.
++            </DialogDescription>
++          </DialogHeader>
++
++          {draft && (
++            <div className="space-y-4">
++              <div className="grid gap-4 sm:grid-cols-2">
++                <div className="space-y-2">
++                  <Label htmlFor="cl-name">Name</Label>
++                  <Input
++                    id="cl-name"
++                    value={draft.name}
++                    placeholder="Standard turnover"
++                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
++                  />
++                </div>
++                <div className="space-y-2">
++                  <Label>Kind of job</Label>
++                  <Select
++                    value={draft.taskType}
++                    onValueChange={(v) => setDraft({ ...draft, taskType: v as TaskType })}
++                  >
++                    <SelectTrigger>
++                      <SelectValue />
++                    </SelectTrigger>
++                    <SelectContent>
++                      {TASK_TYPES.map((t) => (
++                        <SelectItem key={t.value} value={t.value}>
++                          {t.label}
++                        </SelectItem>
++                      ))}
++                    </SelectContent>
++                  </Select>
++                </div>
++              </div>
++
++              <div className="space-y-2">
++                <Label>Applies to</Label>
++                <Select
++                  value={draft.propertyId ?? "all"}
++                  onValueChange={(v) =>
++                    setDraft({ ...draft, propertyId: v === "all" ? null : v, isDefault: false })
++                  }
++                >
++                  <SelectTrigger>
++                    <SelectValue />
++                  </SelectTrigger>
++                  <SelectContent>
++                    <SelectItem value="all">Every place (shared template)</SelectItem>
++                    {(properties.data ?? [])
++                      .filter((p) => p.active)
++                      .map((p) => (
++                        <SelectItem key={p.id} value={p.id}>
++                          {p.name}
++                          {p.unitLabel ? ` · ${p.unitLabel}` : ""}
++                        </SelectItem>
++                      ))}
++                  </SelectContent>
++                </Select>
++              </div>
++
++              {!draft.propertyId && (
++                <label className="flex items-center gap-3 text-sm">
++                  <Switch
++                    checked={draft.isDefault}
++                    onCheckedChange={(v) => setDraft({ ...draft, isDefault: v })}
++                  />
++                  Use this as the default for this kind of job
++                </label>
++              )}
++
++              <label className="flex items-center gap-3 text-sm">
++                <Switch
++                  checked={draft.isActive}
++                  onCheckedChange={(v) => setDraft({ ...draft, isActive: v })}
++                />
++                In use
++              </label>
++
++              <div className="space-y-2">
++                <Label>Lines</Label>
++                <div className="space-y-2">
++                  {draft.items.map((item, index) => (
++                    <div key={index} className="flex flex-wrap items-center gap-2">
++                      <Input
++                        className="min-w-48 flex-1"
++                        value={item.label}
++                        placeholder="Strip and remake the beds"
++                        onChange={(e) => {
++                          const items = [...draft.items];
++                          items[index] = { ...item, label: e.target.value };
++                          setDraft({ ...draft, items });
++                        }}
++                      />
++                      <Input
++                        className="w-32"
++                        value={item.room}
++                        placeholder="Room"
++                        onChange={(e) => {
++                          const items = [...draft.items];
++                          items[index] = { ...item, room: e.target.value };
++                          setDraft({ ...draft, items });
++                        }}
++                      />
++                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
++                        <Switch
++                          checked={item.requiresPhoto}
++                          onCheckedChange={(v) => {
++                            const items = [...draft.items];
++                            items[index] = { ...item, requiresPhoto: v };
++                            setDraft({ ...draft, items });
++                          }}
++                        />
++                        Photo
++                      </label>
++                      <Button
++                        type="button"
++                        size="sm"
++                        variant="ghost"
++                        onClick={() =>
++                          setDraft({
++                            ...draft,
++                            items: draft.items.filter((_, i) => i !== index),
++                          })
++                        }
++                      >
++                        ✕
++                      </Button>
++                    </div>
++                  ))}
++                </div>
++                <Button
++                  type="button"
++                  size="sm"
++                  variant="outline"
++                  onClick={() =>
++                    setDraft({
++                      ...draft,
++                      items: [...draft.items, { label: "", room: "General", requiresPhoto: false }],
++                    })
++                  }
++                >
++                  ➕ Add line
++                </Button>
++              </div>
++
++              <Button
++                className="w-full"
++                disabled={!draft.name.trim() || save.isPending}
++                onClick={() => save.mutate(draft)}
++              >
++                {save.isPending ? "Saving…" : "Save checklist"}
++              </Button>
 +            </div>
-+          </div>
-+
-+          <div className="space-y-2">
-+            <Label htmlFor="job-notes">📝 Notes for the cleaner (optional)</Label>
-+            <Textarea
-+              id="job-notes"
-+              rows={3}
-+              value={notes}
-+              placeholder="e.g. Room has been closed for 3 weeks — air it out and run the taps."
-+              onChange={(e) => setNotes(e.target.value)}
-+            />
-+          </div>
-+
-+          {new Date(due) <= new Date(start) && (
-+            <p className="text-sm text-destructive">
-+              ⚠️ The deadline has to be after the start time.
-+            </p>
 +          )}
-+
-+          <Button
-+            className="w-full"
-+            disabled={invalid || create.isPending}
-+            onClick={() => create.mutate()}
-+          >
-+            {create.isPending ? "Creating…" : "✅ Create job"}
-+          </Button>
-+        </div>
-+      </DialogContent>
-+    </Dialog>
++        </DialogContent>
++      </Dialog>
++    </AppShell>
 +  );
 +}
++
++function ChecklistCard({
++  row,
++  admin,
++  onEdit,
++  onRetire,
++}: {
++  row: ChecklistRow;
++  admin: boolean;
++  onEdit: () => void;
++  onRetire: () => void;
++}) {
++  const type = TASK_TYPES.find((t) => t.value === row.taskType);
++  return (
++    <Card className={row.isActive ? "" : "opacity-60"}>
++      <CardContent className="space-y-2 p-4">
++        <div className="flex flex-wrap items-center gap-2">
++          <p className="font-medium">{row.name}</p>
++          <Badge variant="secondary">{type?.label ?? row.taskType}</Badge>
++          {row.isDefault && <Badge>Default</Badge>}
++          {row.propertyName && <Badge variant="outline">{row.propertyName}</Badge>}
++          {!row.isActive && <Badge variant="outline">Retired</Badge>}
++        </div>
++        <p className="text-sm text-muted-foreground">
++          {row.items.length} line{row.items.length === 1 ? "" : "s"}
++          {row.items.length > 0 && ` · ${row.items.slice(0, 3).map((i) => i.label).join(", ")}`}
++          {row.items.length > 3 && "…"}
++        </p>
++        {admin && (
++          <div className="flex gap-2 pt-1">
++            <Button size="sm" variant="outline" onClick={onEdit}>
++              Edit
++            </Button>
++            {row.isActive && (
++              <Button size="sm" variant="ghost" onClick={onRetire}>
++                Retire
++              </Button>
++            )}
++          </div>
++        )}
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/src/routes/_authenticated/onboarding.tsx b/src/routes/_authenticated/onboarding.tsx
+index 5728869..937a89e 100644
+--- a/src/routes/_authenticated/onboarding.tsx
++++ b/src/routes/_authenticated/onboarding.tsx
+@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
+ import { useState } from "react";
+ import { toast } from "sonner";
+ import { useQueryClient } from "@tanstack/react-query";
+-import { createWorkspace, requestToJoin } from "@/lib/org.functions";
++import { createWorkspace } from "@/lib/org.functions";
+ import { redeemInviteCode } from "@/lib/invites.functions";
+ import { useWorkspace } from "@/hooks/useWorkspace";
+ import { Button } from "@/components/ui/button";
+@@ -10,13 +10,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
+ 
+ export const Route = createFileRoute("/_authenticated/onboarding")({
+   head: () => ({
+     meta: [
+       { title: "Set up your workspace | AirClean" },
+-      { name: "description", content: "Create a new AirClean workspace or join your team's existing one." },
++      {
++        name: "description",
++        content: "Create a new AirClean workspace or join your team's existing one.",
++      },
+       { property: "og:title", content: "Set up your workspace | AirClean" },
+       { property: "og:description", content: "Create a workspace or join your team on AirClean." },
+       { property: "og:type", content: "website" },
+@@ -54,9 +63,7 @@ function Onboarding() {
+   const [currency, setCurrency] = useState("EUR");
+   const [busy, setBusy] = useState(false);
+ 
+-  const [code, setCode] = useState("");
+   const [inviteCode, setInviteCode] = useState("");
+-  const [joinRole, setJoinRole] = useState<"cleaner" | "technician">("cleaner");
+ 
+   const create = async () => {
+     if (name.trim().length < 2) {
+@@ -100,43 +107,20 @@ function Onboarding() {
+     }
+   };
+ 
+-  const join = async () => {
+-    if (!code.trim()) {
+-      toast.error("Enter the workspace code your manager gave you.");
+-      return;
+-    }
+-    setBusy(true);
+-    try {
+-      const res = await requestToJoin({ data: { slug: code.trim(), role: joinRole } });
+-      await refetch();
+-      if (res.status === "active") {
+-        setOrgId(res.orgId);
+-        navigate({ to: "/dashboard" });
+-      } else {
+-        toast.success("Request sent. A manager needs to approve you.");
+-      }
+-    } catch (e) {
+-      toast.error(e instanceof Error ? e.message : "Could not send the request.");
+-    } finally {
+-      setBusy(false);
+-    }
+-  };
+-
+   return (
+     <div className="mx-auto max-w-lg px-4 py-12">
+       <Card>
+         <CardHeader>
+           <CardTitle className="font-display text-2xl">Get set up</CardTitle>
+           <CardDescription>
+-            Start a workspace for your properties, or join a team that already has one.
++            Enter the invitation code your manager sent you, or start a workspace of your own.
+           </CardDescription>
+         </CardHeader>
+         <CardContent>
+           <Tabs defaultValue="invite">
+-            <TabsList className="mb-4 grid w-full grid-cols-3">
++            <TabsList className="mb-4 grid w-full grid-cols-2">
+               <TabsTrigger value="invite">Invitation code</TabsTrigger>
+-              <TabsTrigger value="create">Create</TabsTrigger>
+-              <TabsTrigger value="join">Join</TabsTrigger>
++              <TabsTrigger value="create">Create workspace</TabsTrigger>
+             </TabsList>
+ 
+             <TabsContent value="invite" className="space-y-4">
+@@ -196,36 +180,6 @@ function Onboarding() {
+                 Create workspace
+               </Button>
+             </TabsContent>
+-
+-            <TabsContent value="join" className="space-y-4">
+-              <div className="space-y-2">
+-                <Label htmlFor="ws-code">Workspace code</Label>
+-                <Input
+-                  id="ws-code"
+-                  value={code}
+-                  onChange={(e) => setCode(e.target.value)}
+-                  placeholder="coastal-stays"
+-                />
+-              </div>
+-              <div className="space-y-2">
+-                <Label htmlFor="ws-role">I work as</Label>
+-                <Select value={joinRole} onValueChange={(v) => setJoinRole(v as "cleaner" | "technician")}>
+-                  <SelectTrigger id="ws-role">
+-                    <SelectValue />
+-                  </SelectTrigger>
+-                  <SelectContent>
+-                    <SelectItem value="cleaner">Cleaner</SelectItem>
+-                    <SelectItem value="technician">Maintenance technician</SelectItem>
+-                  </SelectContent>
+-                </Select>
+-              </div>
+-              <Button className="w-full" onClick={join} disabled={busy}>
+-                Ask to join
+-              </Button>
+-              <p className="text-xs text-muted-foreground">
+-                A manager reviews every request before you can see any work.
+-              </p>
+-            </TabsContent>
+           </Tabs>
+         </CardContent>
+       </Card>
+diff --git a/src/routes/_authenticated/supplies.tsx b/src/routes/_authenticated/supplies.tsx
+new file mode 100644
+index 0000000..2aaa23c
+--- /dev/null
++++ b/src/routes/_authenticated/supplies.tsx
+@@ -0,0 +1,348 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { useState } from "react";
++import { toast } from "sonner";
++import { AppShell } from "@/components/app-shell";
++import { useWorkspace, isAdmin } from "@/hooks/useWorkspace";
++import {
++  listAmenityTemplates,
++  saveAmenityTemplate,
++  deleteAmenityTemplate,
++  applyAmenityTemplate,
++  type AmenityTemplate,
++} from "@/lib/amenities.functions";
++import { listProperties } from "@/lib/properties.functions";
++import { Card, CardContent } from "@/components/ui/card";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Badge } from "@/components/ui/badge";
++import { Skeleton } from "@/components/ui/skeleton";
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
++
++export const Route = createFileRoute("/_authenticated/supplies")({
++  head: () => ({
++    meta: [
++      { title: "Supply lists — AirClean" },
++      {
++        name: "description",
++        content:
++          "Set out what every room should contain — towels, toiletries, coffee — and apply the same list to as many places as you like.",
++      },
++      { property: "og:title", content: "Supply lists — AirClean" },
++      {
++        property: "og:description",
++        content: "Reusable room supply lists your guests and cleaners count against.",
++      },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary" },
++    ],
++  }),
++  component: SuppliesPage,
++});
++
++type DraftItem = { id?: string; name: string; expectedQty: number; unit: string | null };
++type Draft = { id?: string; name: string; items: DraftItem[] };
++
++const emptyDraft = (): Draft => ({
++  name: "",
++  items: [{ name: "", expectedQty: 1, unit: null }],
++});
++
++function SuppliesPage() {
++  const { orgId, workspace } = useWorkspace();
++  const qc = useQueryClient();
++  const admin = isAdmin(workspace?.role);
++  const [draft, setDraft] = useState<Draft | null>(null);
++
++  const templates = useQuery({
++    queryKey: ["amenity-templates", orgId],
++    queryFn: () => listAmenityTemplates({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
++
++  const properties = useQuery({
++    queryKey: ["properties", orgId],
++    queryFn: () => listProperties({ data: { orgId: orgId! } }),
++    enabled: !!orgId,
++  });
++
++  const invalidate = () => {
++    qc.invalidateQueries({ queryKey: ["amenity-templates", orgId] });
++    qc.invalidateQueries({ queryKey: ["properties", orgId] });
++  };
++
++  const save = useMutation({
++    mutationFn: (d: Draft) =>
++      saveAmenityTemplate({
++        data: {
++          orgId: orgId!,
++          ...(d.id ? { id: d.id } : {}),
++          name: d.name.trim(),
++          items: d.items
++            .filter((i) => i.name.trim())
++            .map((i) => ({
++              ...(i.id ? { id: i.id } : {}),
++              name: i.name.trim(),
++              expectedQty: i.expectedQty,
++              unit: i.unit?.trim() ? i.unit.trim() : null,
++            })),
++        },
++      }),
++    onSuccess: () => {
++      toast.success("✅ Supply list saved — linked places are up to date.");
++      setDraft(null);
++      invalidate();
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const remove = useMutation({
++    mutationFn: (id: string) => deleteAmenityTemplate({ data: { orgId: orgId!, id } }),
++    onSuccess: () => {
++      toast.success("Supply list deleted.");
++      invalidate();
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const apply = useMutation({
++    mutationFn: (v: { propertyId: string; templateId: string | null }) =>
++      applyAmenityTemplate({ data: { orgId: orgId!, ...v } }),
++    onSuccess: () => {
++      toast.success("✅ Applied.");
++      invalidate();
++    },
++    onError: (e: Error) => toast.error(e.message),
++  });
++
++  const rows = templates.data ?? [];
++  const activeProperties = (properties.data ?? []).filter((p) => p.active);
++  const linkedTemplateFor = (propertyId: string) =>
++    rows.find((t) => t.linkedProperties.some((p) => p.id === propertyId))?.id ?? "none";
++
++  const toDraft = (t: AmenityTemplate): Draft => ({
++    id: t.id,
++    name: t.name,
++    items: t.items.length
++      ? t.items.map((i) => ({ id: i.id, name: i.name, expectedQty: i.expectedQty, unit: i.unit }))
++      : [{ name: "", expectedQty: 1, unit: null }],
++  });
++
++  return (
++    <AppShell title="Supply lists">
++      <div className="space-y-6">
++        <div className="flex flex-wrap items-center gap-3">
++          <p className="text-sm text-muted-foreground">
++            What every room should contain. Places linked to a list stay in step with it — a
++            quantity you change on a single place is kept.
++          </p>
++          {admin && (
++            <Button size="sm" className="ml-auto" onClick={() => setDraft(emptyDraft())}>
++              ➕ New supply list
++            </Button>
++          )}
++        </div>
++
++        {templates.isLoading && <Skeleton className="h-40 w-full" />}
++
++        {!templates.isLoading && rows.length === 0 && (
++          <Card>
++            <CardContent className="p-8 text-center text-sm text-muted-foreground">
++              🧴 No supply lists yet. Create one, then link your places to it.
++            </CardContent>
++          </Card>
++        )}
++
++        <div className="grid gap-3 md:grid-cols-2">
++          {rows.map((t) => (
++            <Card key={t.id}>
++              <CardContent className="space-y-2 p-4">
++                <div className="flex flex-wrap items-center gap-2">
++                  <p className="font-medium">{t.name}</p>
++                  <Badge variant="secondary">
++                    {t.items.length} item{t.items.length === 1 ? "" : "s"}
++                  </Badge>
++                  <Badge variant="outline">
++                    {t.linkedProperties.length} place
++                    {t.linkedProperties.length === 1 ? "" : "s"}
++                  </Badge>
++                </div>
++                <p className="text-sm text-muted-foreground">
++                  {t.items
++                    .slice(0, 5)
++                    .map((i) => `${i.name} ×${i.expectedQty}${i.unit ? ` ${i.unit}` : ""}`)
++                    .join(" · ") || "No items yet"}
++                  {t.items.length > 5 && " …"}
++                </p>
++                {t.linkedProperties.length > 0 && (
++                  <p className="text-xs text-muted-foreground">
++                    Used by {t.linkedProperties.map((p) => p.name).join(", ")}
++                  </p>
++                )}
++                {admin && (
++                  <div className="flex gap-2 pt-1">
++                    <Button size="sm" variant="outline" onClick={() => setDraft(toDraft(t))}>
++                      Edit
++                    </Button>
++                    <Button size="sm" variant="ghost" onClick={() => remove.mutate(t.id)}>
++                      Delete
++                    </Button>
++                  </div>
++                )}
++              </CardContent>
++            </Card>
++          ))}
++        </div>
++
++        {admin && activeProperties.length > 0 && rows.length > 0 && (
++          <section className="space-y-3">
++            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
++              Which list each place uses
++            </h2>
++            <Card>
++              <CardContent className="divide-y divide-border p-0">
++                {activeProperties.map((p) => (
++                  <div key={p.id} className="flex flex-wrap items-center gap-3 p-4">
++                    <p className="text-sm font-medium">
++                      {p.name}
++                      {p.unitLabel ? ` · ${p.unitLabel}` : ""}
++                    </p>
++                    <Select
++                      value={linkedTemplateFor(p.id)}
++                      onValueChange={(v) =>
++                        apply.mutate({ propertyId: p.id, templateId: v === "none" ? null : v })
++                      }
++                    >
++                      <SelectTrigger className="ml-auto w-56">
++                        <SelectValue />
++                      </SelectTrigger>
++                      <SelectContent>
++                        <SelectItem value="none">No supply list</SelectItem>
++                        {rows.map((t) => (
++                          <SelectItem key={t.id} value={t.id}>
++                            {t.name}
++                          </SelectItem>
++                        ))}
++                      </SelectContent>
++                    </Select>
++                  </div>
++                ))}
++              </CardContent>
++            </Card>
++          </section>
++        )}
++      </div>
++
++      <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
++        <DialogContent className="max-h-[90vh] overflow-y-auto">
++          <DialogHeader>
++            <DialogTitle>{draft?.id ? "Edit supply list" : "New supply list"}</DialogTitle>
++            <DialogDescription>
++              Saving pushes the changes to every place using this list. Quantities changed on a
++              single place are left as they are.
++            </DialogDescription>
++          </DialogHeader>
++
++          {draft && (
++            <div className="space-y-4">
++              <div className="space-y-2">
++                <Label htmlFor="sl-name">Name</Label>
++                <Input
++                  id="sl-name"
++                  value={draft.name}
++                  placeholder="Standard two-bedroom"
++                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
++                />
++              </div>
++
++              <div className="space-y-2">
++                <Label>Items</Label>
++                {draft.items.map((item, index) => (
++                  <div key={index} className="flex flex-wrap items-center gap-2">
++                    <Input
++                      className="min-w-40 flex-1"
++                      value={item.name}
++                      placeholder="Bath towel"
++                      onChange={(e) => {
++                        const items = [...draft.items];
++                        items[index] = { ...item, name: e.target.value };
++                        setDraft({ ...draft, items });
++                      }}
++                    />
++                    <Input
++                      className="w-20"
++                      type="number"
++                      min={0}
++                      max={999}
++                      value={item.expectedQty}
++                      onChange={(e) => {
++                        const items = [...draft.items];
++                        items[index] = { ...item, expectedQty: Number(e.target.value) || 0 };
++                        setDraft({ ...draft, items });
++                      }}
++                    />
++                    <Input
++                      className="w-24"
++                      value={item.unit ?? ""}
++                      placeholder="unit"
++                      onChange={(e) => {
++                        const items = [...draft.items];
++                        items[index] = { ...item, unit: e.target.value || null };
++                        setDraft({ ...draft, items });
++                      }}
++                    />
++                    <Button
++                      type="button"
++                      size="sm"
++                      variant="ghost"
++                      onClick={() =>
++                        setDraft({ ...draft, items: draft.items.filter((_, i) => i !== index) })
++                      }
++                    >
++                      ✕
++                    </Button>
++                  </div>
++                ))}
++                <Button
++                  type="button"
++                  size="sm"
++                  variant="outline"
++                  onClick={() =>
++                    setDraft({
++                      ...draft,
++                      items: [...draft.items, { name: "", expectedQty: 1, unit: null }],
++                    })
++                  }
++                >
++                  ➕ Add item
++                </Button>
++              </div>
++
++              <Button
++                className="w-full"
++                disabled={!draft.name.trim() || save.isPending}
++                onClick={() => save.mutate(draft)}
++              >
++                {save.isPending ? "Saving…" : "Save supply list"}
++              </Button>
++            </div>
++          )}
++        </DialogContent>
++      </Dialog>
++    </AppShell>
++  );
++}
+diff --git a/src/routes/g.$code.tsx b/src/routes/g.$code.tsx
+index 0deb16b..fb37e9a 100644
+--- a/src/routes/g.$code.tsx
++++ b/src/routes/g.$code.tsx
+@@ -53,7 +53,8 @@ function GuestStayPage() {
+   const { code } = Route.useParams();
+   const qc = useQueryClient();
+   const [sessionId, setSessionId] = useState<string | null>(null);
+-  const [accessCode, setAccessCode] = useState("");
++  const [guestName, setGuestName] = useState("");
++  const [partySize, setPartySize] = useState("2");
+ 
+   useEffect(() => {
+     try {
+@@ -91,7 +92,14 @@ function GuestStayPage() {
+   }, [context.error, code]);
+ 
+   const unlock = useMutation({
+-    mutationFn: () => startGuestSession({ data: { code, accessCode } }),
++    mutationFn: () =>
++      startGuestSession({
++        data: {
++          code,
++          guestName: guestName.trim(),
++          partySize: Math.max(1, Math.min(30, Number(partySize) || 1)),
++        },
++      }),
+     onSuccess: (result) => {
+       try {
+         window.localStorage.setItem(storageKey(code), result.sessionId);
+@@ -99,12 +107,11 @@ function GuestStayPage() {
+         /* storage unavailable */
+       }
+       setSessionId(result.sessionId);
+-      setAccessCode("");
+     },
+     onError: (error: Error) =>
+       toast.error(
+         error.message === "bad_code"
+-          ? "That access code does not match this place."
++          ? "This stay link is no longer active. Please ask your host."
+           : "We could not open your stay. Please ask your host.",
+       ),
+   });
+@@ -132,22 +139,36 @@ function GuestStayPage() {
+           <Card>
+             <CardContent className="space-y-4 pt-6">
+               <div className="space-y-2">
+-                <Label htmlFor="access-code">Access code</Label>
++                <Label htmlFor="start-name">Your name</Label>
++                <Input
++                  id="start-name"
++                  value={guestName}
++                  onChange={(e) => setGuestName(e.target.value)}
++                  placeholder="The name on the booking"
++                  autoComplete="name"
++                />
++              </div>
++              <div className="space-y-2">
++                <Label htmlFor="start-party">How many of you are staying?</Label>
+                 <Input
+-                  id="access-code"
+-                  value={accessCode}
+-                  onChange={(e) => setAccessCode(e.target.value)}
+-                  placeholder="The code your host gave you"
+-                  autoComplete="one-time-code"
++                  id="start-party"
++                  type="number"
++                  min={1}
++                  max={30}
++                  value={partySize}
++                  onChange={(e) => setPartySize(e.target.value)}
+                 />
+               </div>
+               <Button
+                 className="w-full"
+-                disabled={!accessCode.trim() || unlock.isPending}
++                disabled={guestName.trim().length < 2 || unlock.isPending}
+                 onClick={() => unlock.mutate()}
+               >
+-                {unlock.isPending ? "Checking…" : "Open my stay"}
++                {unlock.isPending ? "Opening…" : "Start my stay"}
+               </Button>
++              <p className="text-xs text-muted-foreground">
++                No account needed. Your host uses this only to look after your stay.
++              </p>
+             </CardContent>
+           </Card>
+         ) : context.isLoading || !context.data ? (
+@@ -273,11 +294,16 @@ function AmenityCard({
+     Object.fromEntries(data.amenities.map((a) => [a.id, String(a.foundQty ?? a.expectedQty)])),
+   );
+ 
++  const [shortages, setShortages] = useState<
++    { name: string; expectedQty: number; foundQty: number; unit: string | null }[]
++  >([]);
++
+   const save = useMutation({
+-    mutationFn: () =>
++    mutationFn: (confirmShortage: boolean) =>
+       saveGuestAmenityCheck({
+         data: {
+           sessionId,
++          confirmShortage,
+           entries: data.amenities.map((a) => ({
+             amenityId: a.id,
+             foundQty: Math.max(0, Math.min(999, Number(counts[a.id] ?? 0) || 0)),
+@@ -285,8 +311,18 @@ function AmenityCard({
+           })),
+         },
+       }),
+-    onSuccess: () => {
+-      toast.success("Thanks — your host has the counts.");
++    onSuccess: (result) => {
++      if (result.blocked) {
++        setShortages(result.shortages);
++        toast.error("Some items are missing — please check the list below before sending.");
++        return;
++      }
++      setShortages([]);
++      toast.success(
++        result.shortages.length > 0
++          ? "Thanks — your host has been told what is missing."
++          : "Thanks — your host has the counts.",
++      );
+       onSaved();
+     },
+     onError: (error: Error) => toast.error(error.message),
+@@ -324,12 +360,34 @@ function AmenityCard({
+             </li>
+           ))}
+         </ul>
++        {shortages.length > 0 && (
++          <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
++            <p className="text-sm font-medium text-destructive">
++              ⚠️ These items are short of what should be here
++            </p>
++            <ul className="space-y-1 text-sm text-muted-foreground">
++              {shortages.map((s) => (
++                <li key={s.name}>
++                  {s.name}: found {s.foundQty} of {s.expectedQty}
++                  {s.unit ? ` ${s.unit}` : ""}
++                </li>
++              ))}
++            </ul>
++            <p className="text-xs text-muted-foreground">
++              Sending this tells your host straight away so somebody can bring the missing items.
++            </p>
++          </div>
++        )}
+         <Button
+           className="w-full"
+           disabled={save.isPending || data.checkedOut}
+-          onClick={() => save.mutate()}
++          onClick={() => save.mutate(shortages.length > 0)}
+         >
+-          {save.isPending ? "Saving…" : "Save counts"}
++          {save.isPending
++            ? "Saving…"
++            : shortages.length > 0
++              ? "Send the missing items to my host"
++              : "Save counts"}
+         </Button>
+       </CardContent>
+     </Card>
+diff --git a/supabase/migrations/20260913133419_3d9e4a1a-a2cf-4ab7-92d9-ca78900820e0.sql b/supabase/migrations/20260913133419_3d9e4a1a-a2cf-4ab7-92d9-ca78900820e0.sql
+new file mode 100644
+index 0000000..9788fb0
+--- /dev/null
++++ b/supabase/migrations/20260913133419_3d9e4a1a-a2cf-4ab7-92d9-ca78900820e0.sql
+@@ -0,0 +1,61 @@
++ALTER TABLE public.checklists
++  ADD COLUMN IF NOT EXISTS property_id UUID REFERENCES public.properties(id) ON DELETE CASCADE,
++  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
++
++CREATE INDEX IF NOT EXISTS checklists_lookup_idx
++  ON public.checklists (org_id, task_type, property_id, is_active);
++
++CREATE TABLE IF NOT EXISTS public.amenity_templates (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
++  name TEXT NOT NULL,
++  is_active BOOLEAN NOT NULL DEFAULT true,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
++  UNIQUE (org_id, name)
++);
++
++GRANT SELECT ON public.amenity_templates TO authenticated;
++GRANT ALL ON public.amenity_templates TO service_role;
++ALTER TABLE public.amenity_templates ENABLE ROW LEVEL SECURITY;
++
++CREATE POLICY "Members read amenity templates"
++  ON public.amenity_templates FOR SELECT TO authenticated
++  USING (public.is_org_member(org_id));
++
++CREATE TRIGGER t_amenity_templates_upd
++  BEFORE UPDATE ON public.amenity_templates
++  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
++
++CREATE TABLE IF NOT EXISTS public.amenity_template_items (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
++  template_id UUID NOT NULL REFERENCES public.amenity_templates(id) ON DELETE CASCADE,
++  name TEXT NOT NULL,
++  expected_qty INTEGER NOT NULL DEFAULT 1 CHECK (expected_qty >= 0),
++  unit TEXT,
++  sort_order INTEGER NOT NULL DEFAULT 0,
++  UNIQUE (template_id, name)
++);
++
++GRANT SELECT ON public.amenity_template_items TO authenticated;
++GRANT ALL ON public.amenity_template_items TO service_role;
++ALTER TABLE public.amenity_template_items ENABLE ROW LEVEL SECURITY;
++
++CREATE POLICY "Members read amenity template items"
++  ON public.amenity_template_items FOR SELECT TO authenticated
++  USING (public.is_org_member(org_id));
++
++CREATE INDEX IF NOT EXISTS amenity_template_items_template_idx
++  ON public.amenity_template_items (template_id, sort_order, name);
++
++ALTER TABLE public.amenity_definitions
++  ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES public.amenity_templates(id) ON DELETE SET NULL,
++  ADD COLUMN IF NOT EXISTS template_item_id UUID REFERENCES public.amenity_template_items(id) ON DELETE SET NULL,
++  ADD COLUMN IF NOT EXISTS qty_overridden BOOLEAN NOT NULL DEFAULT false;
++
++CREATE INDEX IF NOT EXISTS amenity_definitions_template_idx
++  ON public.amenity_definitions (template_id);
++
++ALTER TABLE public.properties
++  ADD COLUMN IF NOT EXISTS amenity_template_id UUID REFERENCES public.amenity_templates(id) ON DELETE SET NULL;
+\ No newline at end of file
